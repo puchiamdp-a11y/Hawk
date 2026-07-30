@@ -263,7 +263,7 @@ st.markdown("""
 # ============================================
 # CARGAR DATOS (CON CACHE)
 # ============================================
-@st.cache_data(ttl=300)  # Cache de 5 minutos
+@st.cache_data(ttl=3600)  # Cache de 1 hora
 def cargar_datos():
     """Carga datos frescos de Google Drive (con cache de 5 min)"""
     response = requests.get(URL, timeout=10)
