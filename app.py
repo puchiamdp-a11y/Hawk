@@ -135,6 +135,47 @@ st.markdown("""
         font-size: 12px;
         line-height: 1.5;
     }
+    /* TARJETAS DE INFORMACIÓN - CLIENTES VIP */
+    .info-card {
+        background: linear-gradient(135deg, #1E3A8A 0%, #2E5AB5 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .info-card h3 {
+        color: white !important;
+        margin-top: 0 !important;
+        font-size: 18px !important;
+    }
+    
+    .info-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .info-item {
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 3px solid #FFD700;
+    }
+    
+    .info-label {
+        font-size: 11px;
+        opacity: 0.9;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
+    .info-value {
+        font-size: 16px;
+        font-weight: bold;
+    }
     
     .stMetric {
         background-color: transparent;
@@ -437,8 +478,8 @@ elif pantalla_actual == "Fichas VIP":
                 # ============================================
                 st.write("### 📋 Información del Cliente")
                 
-                # Extraer desde fila 15 (índice 15, que es fila 16 en Excel)
-                info_rows = df_cliente.iloc[15:22]  # B16:E21
+               # Extraer desde fila 14 (índice 14, que es fila 15 en Excel - COMERCIAL)
+                info_rows = df_cliente.iloc[14:21]  # B15:E21 (incluye Comercial)
                 
                # Limpiar y mostrar información
                 info_data = []
