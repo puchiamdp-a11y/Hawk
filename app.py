@@ -80,6 +80,44 @@ st.markdown("""
         opacity: 0.85;
     }
     
+    /* GRILLA DE EMISIÓN */
+    .emission-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+        margin: 10px 0;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .emission-cell {
+        padding: 12px;
+        border-right: 1px solid #E5E7EB;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: center;
+    }
+    
+    .emission-cell:nth-child(2n) {
+        border-right: none;
+    }
+    
+    .emission-cell:nth-last-child(-n+2) {
+        border-bottom: none;
+    }
+    
+    .emission-label {
+        font-size: 10px;
+        color: #666;
+        margin-bottom: 6px;
+    }
+    
+    .emission-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1E3A8A;
+    }
+    
     .alert-card {
         background-color: #1E3A8A;
         color: white;
@@ -254,23 +292,29 @@ if pantalla_actual == "Resumen Ejecutivo":
         </div>
         """, unsafe_allow_html=True)
     
-    # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
+   # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
     st.write("**Estado de Emisión**")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        col1a, col1b = st.columns(2)
-        with col1a:
-            st.metric("Total", total_comercios)
-        with col1b:
-            st.metric("Pendientes", pendientes_emitir)
-    
-    with col2:
-        col2a, col2b = st.columns(2)
-        with col2a:
-            st.metric("Emitidos", ya_emitidos)
-        with col2b:
-            st.metric("Cant Promedio", int(promedio_ventas_pendientes) if pd.notna(promedio_ventas_pendientes) else 0)
+    st.markdown(f"""
+    <div class="emission-grid">
+        <div class="emission-cell">
+            <div class="emission-label">📊 Total</div>
+            <div class="emission-value">{total_comercios}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">⚠️ Pendientes</div>
+            <div class="emission-value">{pendientes_emitir}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">✅ Emitidos</div>
+            <div class="emission-value">{ya_emitidos}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">📈 Cant Promedio</div>
+            <div class="emission-value">{int(promedio_ventas_pendientes) if pd.notna(promedio_ventas_pendientes) else 0}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
     st.write("**Ventas Pendientes**")
