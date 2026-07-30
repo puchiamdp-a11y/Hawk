@@ -155,8 +155,8 @@ st.markdown("""
 # ============================================
 # CARGAR DATOS
 # ============================================
-@st.cache_data
 def cargar_datos():
+    """Carga datos frescos de Google Drive (sin cache)"""
     response = requests.get(URL, timeout=10)
     archivo_excel = BytesIO(response.content)
     
@@ -168,6 +168,7 @@ def cargar_datos():
     
     return datos
 
+# Cargar datos (siempre frescos)
 datos = cargar_datos()
 
 # ============================================
