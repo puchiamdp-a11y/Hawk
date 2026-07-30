@@ -351,7 +351,6 @@ if pantalla_actual == "Resumen Ejecutivo":
 elif pantalla_actual == "Fichas VIP":
     st.title("Fichas de Clientes VIP")
     
-    # Definir clientes VIP y sus pestañas
     clientes_vip = {
         "SYNA": "FC SYNA",
         "BAZAR": "FC BAZAR",
@@ -360,54 +359,92 @@ elif pantalla_actual == "Fichas VIP":
         "SENSEI": "FC SENSEI"
     }
     
-    # Crear tabs para cada cliente
     tabs = st.tabs([f"📌 {cliente}" for cliente in clientes_vip.keys()])
     
     for tab, (cliente, pestaña_fc) in zip(tabs, clientes_vip.items()):
         with tab:
-            # Leer datos del cliente
             if pestaña_fc in datos:
                 df_cliente = datos[pestaña_fc]
-                
-                # Mostrar nombre del cliente como título
                 st.write(f"## {cliente}")
                 
-                # Extraer datos de ventas (filas 3 en adelante, skipeando headers)
-                # Las filas 0-2 son títulos/headers
-                # Fila 3 es el header real: Mes, Cant, Premio
-                # Filas 4-10 son datos mensuales
+                # Extraer datos (filas 3-9 tienen los meses)
+                df_datos = df_cliente.iloc[3:10].copy()
+                df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
-                df_ventas = df_cliente.iloc[4:11].copy()  # Datos de Enero a Julio
-                df_ventas = df_ventas.dropna(how='all')  # Remover filas vacías
+                # ============================================
+                # TOYOS: 4 columnas (solo GARANTIAS)
+                # ============================================
+                if cliente == "TOYOS":
+                    st.write("### 📊 Garantías - Ventas Mensuales")
+                    
+                    df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3']].copy()
+                    df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
+                    df_table = df_table[df_table['Mes'].notna()]
+                    
+                    # Formatear para tabla
+                    df_display = df_table.copy()
+                    df_display['GAR_Cant'] = pd.to_numeric(df_display['GAR_Cant'], errors='coerce').fillna(0).astype(int)
+                    df_display['GAR_Premio'] = df_display['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                    
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+                    
+                    # Gráfico
+                    st.write("### 📈 Evolución de Ventas")
+                    df_graph = df_table.copy()
+                    df_graph['GAR_Cant'] = pd.to_numeric(df_graph['GAR_Cant'], errors='coerce')
+                    df_graph = df_graph[df_graph['Mes'].notna() & (df_graph['GAR_Cant'] > 0)]
+                    
+                    if not df_graph.empty:
+                        st.line_chart(df_graph.set_index('Mes')['GAR_Cant'])
                 
-                # Limpiar columnas
-                df_ventas.columns = ['Unnamed: 0', 'Mes', 'Cant', 'Premio', 'Unnamed: 4', 'Unnamed: 5', 'Unnamed: 6', 'Unnamed: 7']
-                df_ventas = df_ventas[['Mes', 'Cant', 'Premio']]
+                # ============================================
+                # SYNA, BAZAR, DRICCO, SENSEI: 8 columnas
+                # ============================================
+                else:
+                    st.write("### 📊 Ventas por Cobertura")
+                    
+                    df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5', 'Unnamed: 6', 'Unnamed: 7']].copy()
+                    df_table.columns = ['Mes', 'ASS_Cant', 'ASS_Premio', 'GAR_Cant', 'GAR_Premio', 'TOT_Cant', 'TOT_Premio']
+                    df_table = df_table[df_table['Mes'].notna()]
+                    
+                    # Mostrar en 3 columnas
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write("**Asistencias**")
+                        df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
+                        df_ass['ASS_Cant'] = pd.to_numeric(df_ass['ASS_Cant'], errors='coerce').fillna(0).astype(int)
+                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        st.dataframe(df_ass, use_container_width=True, hide_index=True)
+                    
+                    with col2:
+                        st.write("**Garantías**")
+                        df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
+                        df_gar['GAR_Cant'] = pd.to_numeric(df_gar['GAR_Cant'], errors='coerce').fillna(0).astype(int)
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        st.dataframe(df_gar, use_container_width=True, hide_index=True)
+                    
+                    with col3:
+                        st.write("**Total**")
+                        df_tot = df_table[['Mes', 'TOT_Cant', 'TOT_Premio']].copy()
+                        df_tot['TOT_Cant'] = pd.to_numeric(df_tot['TOT_Cant'], errors='coerce').fillna(0).astype(int)
+                        df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        st.dataframe(df_tot, use_container_width=True, hide_index=True)
+                    
+                    # Gráfico TOTAL
+                    st.write("### 📈 Evolución Total de Ventas")
+                    df_graph = df_table.copy()
+                    df_graph['TOT_Cant'] = pd.to_numeric(df_graph['TOT_Cant'], errors='coerce')
+                    df_graph = df_graph[df_graph['Mes'].notna() & (df_graph['TOT_Cant'] > 0)]
+                    
+                    if not df_graph.empty:
+                        st.line_chart(df_graph.set_index('Mes')['TOT_Cant'])
                 
-                # Mostrar tabla de ventas
-                st.write("### 📊 Ventas Mensuales (Último año)")
-                
-               # Formatear para visualización
-                df_display = df_ventas.copy()
-                df_display['Cant'] = pd.to_numeric(df_display['Cant'], errors='coerce').fillna(0).astype(int)
-                df_display['Premio'] = df_display['Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
-                
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
-                
-                # Gráfico simple de evolución
-                st.write("### 📈 Evolución de Ventas")
-                
-                df_grafico = df_ventas.copy()
-                df_grafico = df_grafico[df_grafico['Mes'] != 'Julio']  # Excluir Julio vacío
-                df_grafico['Cant'] = pd.to_numeric(df_grafico['Cant'], errors='coerce')
-                
-                st.line_chart(df_grafico.set_index('Mes')['Cant'])
-                
-                # Placeholder para info extra (B16:E21)
-                st.write("### 📋 Información Adicional")
-                st.info("⚠️ Información de comercial, administrativa, facturación y vencimiento pendiente de integrar")
+                st.markdown("---")
+                st.info("📋 Información de comercial, administrativa, vencimiento e incentivos en desarrollo")
+            
             else:
-                st.error(f"❌ Pestaña '{pestaña_fc}' no encontrada en el Excel")
+                st.error(f"❌ Pestaña '{pestaña_fc}' no encontrada")
     
     st.markdown("---")
-    st.caption("✅ Datos de fichas VIP cargados desde Google Drive")
+    st.caption("✅ Fichas VIP cargadas desde Google Drive")
