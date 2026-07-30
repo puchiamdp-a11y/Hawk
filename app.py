@@ -703,80 +703,65 @@ elif pantalla_actual == "Proveedores":
         
         df_tabla = df_tabla[df_tabla['Mes'].notna()]
         
-        # Crear tabla formateada
-        df_display = df_tabla.copy()
-        
-        for col in ['Cardinal_Cant', 'Addiuva_Cant', 'BZR_Cant', 'GRAL_Cant', 'Imprenta_Cant']:
-            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int)
-        
-        for col in ['Cardinal_Precio', 'Addiuva_Precio', 'BZR_Precio', 'GRAL_Precio', 'Imprenta_Precio']:
-            df_display[col] = df_display[col].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-        
-        # Mostrar por proveedor
+        # CARDINAL
         st.markdown("""
         <div class="provider-header">
             <h4>🏥 Cardinal</h4>
         </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Cantidad**")
-            st.dataframe(df_display[['Mes', 'Cardinal_Cant']], use_container_width=True, hide_index=True)
-        with col2:
-            st.write("**Precio**")
-            st.dataframe(df_display[['Mes', 'Cardinal_Precio']], use_container_width=True, hide_index=True)
+        df_cardinal = df_tabla[['Mes', 'Cardinal_Cant', 'Cardinal_Precio']].copy()
+        df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
+        df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
+        df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        st.dataframe(df_cardinal, use_container_width=True, hide_index=True)
         
+        # ADDIUVA
         st.markdown("""
         <div class="provider-header">
             <h4>💊 Addiuva</h4>
         </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Cantidad**")
-            st.dataframe(df_display[['Mes', 'Addiuva_Cant']], use_container_width=True, hide_index=True)
-        with col2:
-            st.write("**Precio**")
-            st.dataframe(df_display[['Mes', 'Addiuva_Precio']], use_container_width=True, hide_index=True)
+        df_addiuva = df_tabla[['Mes', 'Addiuva_Cant', 'Addiuva_Precio']].copy()
+        df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
+        df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
+        df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        st.dataframe(df_addiuva, use_container_width=True, hide_index=True)
         
+        # LLAMADAS AL DOCTOR - BZR
         st.markdown("""
         <div class="provider-header">
             <h4>☎️ Llamadas al Doctor - BZR</h4>
         </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Cantidad**")
-            st.dataframe(df_display[['Mes', 'BZR_Cant']], use_container_width=True, hide_index=True)
-        with col2:
-            st.write("**Precio**")
-            st.dataframe(df_display[['Mes', 'BZR_Precio']], use_container_width=True, hide_index=True)
+        df_bzr = df_tabla[['Mes', 'BZR_Cant', 'BZR_Precio']].copy()
+        df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
+        df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
+        df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        st.dataframe(df_bzr, use_container_width=True, hide_index=True)
         
+        # LLAMADAS AL DOCTOR - GRAL
         st.markdown("""
         <div class="provider-header">
             <h4>☎️ Llamadas al Doctor - GRAL</h4>
         </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Cantidad**")
-            st.dataframe(df_display[['Mes', 'GRAL_Cant']], use_container_width=True, hide_index=True)
-        with col2:
-            st.write("**Precio**")
-            st.dataframe(df_display[['Mes', 'GRAL_Precio']], use_container_width=True, hide_index=True)
+        df_gral = df_tabla[['Mes', 'GRAL_Cant', 'GRAL_Precio']].copy()
+        df_gral.columns = ['Mes', 'Cantidad', 'Precio']
+        df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
+        df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        st.dataframe(df_gral, use_container_width=True, hide_index=True)
         
+        # IMPRENTA
         st.markdown("""
         <div class="provider-header">
             <h4>🖨️ Imprenta</h4>
         </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Cantidad**")
-            st.dataframe(df_display[['Mes', 'Imprenta_Cant']], use_container_width=True, hide_index=True)
-        with col2:
-            st.write("**Precio**")
-            st.dataframe(df_display[['Mes', 'Imprenta_Precio']], use_container_width=True, hide_index=True)
+        df_imprenta = df_tabla[['Mes', 'Imprenta_Cant', 'Imprenta_Precio']].copy()
+        df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
+        df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
+        df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        st.dataframe(df_imprenta, use_container_width=True, hide_index=True)
         
         st.markdown("---")
         st.caption("✅ Datos de facturación cargados desde Google Drive")
