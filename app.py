@@ -189,10 +189,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
-# CARGAR DATOS
+# CARGAR DATOS (CON CACHE)
 # ============================================
+@st.cache_data(ttl=300)  # Cache de 5 minutos
 def cargar_datos():
-    """Carga datos frescos de Google Drive (sin cache)"""
+    """Carga datos frescos de Google Drive (con cache de 5 min)"""
     response = requests.get(URL, timeout=10)
     archivo_excel = BytesIO(response.content)
     
@@ -204,11 +205,9 @@ def cargar_datos():
     
     return datos
 
-# Cargar datos (siempre frescos)
 datos = cargar_datos()
-
 # ============================================
-# SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
+# SELECTOR DE PANTALLA (SIDEBAR COMPACTO + AUTO-CIERRE)
 # ============================================
 with st.sidebar:
     st.write("")  # Espaciador
@@ -221,18 +220,22 @@ with st.sidebar:
     # Botones de navegación
     if st.button("📊", key="btn_resumen", use_container_width=True):
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
+        st.session_state.cerrar_sidebar = True
         st.rerun()
     
     if st.button("👥", key="btn_vip", use_container_width=True):
         st.session_state.pantalla_actual = "Fichas VIP"
+        st.session_state.cerrar_sidebar = True
         st.rerun()
     
     if st.button("💰", key="btn_costos", use_container_width=True):
         st.session_state.pantalla_actual = "Machete Costos"
+        st.session_state.cerrar_sidebar = True
         st.rerun()
     
     if st.button("📦", key="btn_prov", use_container_width=True):
         st.session_state.pantalla_actual = "Proveedores"
+        st.session_state.cerrar_sidebar = True
         st.rerun()
     
     st.write("")  # Espaciador
@@ -240,7 +243,20 @@ with st.sidebar:
     st.write("")  # Espaciador
     
     if st.button("🔄", key="btn_refresh", use_container_width=True):
+        st.cache_data.clear()
         st.rerun()
+
+# Ocultar sidebar automáticamente
+if st.session_state.get("cerrar_sidebar", False):
+    st.markdown("""
+    <script>
+        document.querySelector('[data-testid="stSidebar"]').style.display = 'none';
+        setTimeout(() => {
+            document.querySelector('[data-testid="stSidebar"]').style.display = 'block';
+        }, 500);
+    </script>
+    """, unsafe_allow_html=True)
+    st.session_state.cerrar_sidebar = False
 
 # Obtener pantalla actual
 pantalla_actual = st.session_state.pantalla_actual
