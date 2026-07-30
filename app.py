@@ -207,97 +207,41 @@ def cargar_datos():
 datos = cargar_datos()
 
 # ============================================
-# SELECTOR DE PANTALLA (SIDEBAR PROFESIONAL)
+# SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
 # ============================================
-st.set_page_config(
-    page_title="Hawk - Reportes",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Agregar estilos para el sidebar
-st.markdown("""
-<style>
-    /* Sidebar profesional */
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E5E7EB;
-    }
-    
-    .sidebar-menu {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        margin-top: 20px;
-    }
-    
-    .menu-btn {
-        background-color: #1E3A8A;
-        color: white;
-        padding: 25px;
-        border-radius: 12px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: none;
-        font-size: 40px;
-        min-height: 100px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .menu-btn:hover {
-        background-color: #2E5AB5;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
-    }
-    
-    .menu-btn.active {
-        background-color: #1E3A8A;
-        box-shadow: 0 0 0 3px #E5E7EB;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 with st.sidebar:
     st.write("")  # Espaciador
+    st.write("")  # Espaciador
     
-    # Botones de navegación
-    col1 = st.columns(1)[0]
-    
-    with col1:
-        st.markdown("""
-        <div class="sidebar-menu">
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Crear columnas para los botones (apilados verticalmente)
-    if st.button("📊", key="btn_resumen", use_container_width=True, help="Resumen Ejecutivo"):
-        pantalla_actual = "Resumen Ejecutivo"
+    # Inicializar session_state para pantalla actual
+    if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-    if st.button("👥", key="btn_vip", use_container_width=True, help="Fichas VIP"):
-        pantalla_actual = "Fichas VIP"
+    # Botones de navegación
+    if st.button("📊", key="btn_resumen", use_container_width=True):
+        st.session_state.pantalla_actual = "Resumen Ejecutivo"
+        st.rerun()
+    
+    if st.button("👥", key="btn_vip", use_container_width=True):
         st.session_state.pantalla_actual = "Fichas VIP"
+        st.rerun()
     
-    if st.button("💰", key="btn_costos", use_container_width=True, help="Machete Costos"):
-        pantalla_actual = "Machete Costos"
+    if st.button("💰", key="btn_costos", use_container_width=True):
         st.session_state.pantalla_actual = "Machete Costos"
+        st.rerun()
     
-    if st.button("📦", key="btn_prov", use_container_width=True, help="Proveedores"):
-        pantalla_actual = "Proveedores"
+    if st.button("📦", key="btn_prov", use_container_width=True):
         st.session_state.pantalla_actual = "Proveedores"
+        st.rerun()
     
+    st.write("")  # Espaciador
     st.markdown("---")
+    st.write("")  # Espaciador
     
-    if st.button("🔄 Actualizar", use_container_width=True):
+    if st.button("🔄", key="btn_refresh", use_container_width=True):
         st.rerun()
 
-# Obtener pantalla actual de session_state
-if "pantalla_actual" not in st.session_state:
-    st.session_state.pantalla_actual = "Resumen Ejecutivo"
-
+# Obtener pantalla actual
 pantalla_actual = st.session_state.pantalla_actual
 # ============================================
 # PROCESAR DATOS RESUMEN
