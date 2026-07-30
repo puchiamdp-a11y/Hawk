@@ -173,28 +173,30 @@ def cargar_datos():
 datos = cargar_datos()
 
 # ============================================
+# SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
 # ============================================
-# SELECTOR DE PANTALLA (TABS HORIZONTALES)
-# ============================================
-pantalla_tabs = st.tabs([
-    "📊 Resumen Ejecutivo",
-    "👥 Fichas VIP",
-    "💰 Machete Costos",
-    "📦 Proveedores"
-])
-
-with pantalla_tabs[0]:
-    pantalla_actual = "Resumen Ejecutivo"
-with pantalla_tabs[1]:
-    pantalla_actual = "Fichas VIP"
-with pantalla_tabs[2]:
-    pantalla_actual = "Machete Costos"
-with pantalla_tabs[3]:
-    pantalla_actual = "Proveedores"
-
-# Determinar cuál tab está activo
-if "pantalla_activa" not in st.session_state:
-    st.session_state.pantalla_activa = "Resumen Ejecutivo"
+with st.sidebar:
+    st.write("**Menu**")
+    
+    opciones = {
+        "📊": "Resumen Ejecutivo",
+        "👥": "Fichas VIP",
+        "💰": "Machete Costos",
+        "📦": "Proveedores"
+    }
+    
+    pantalla_actual = st.selectbox(
+        "Selecciona una pantalla:",
+        list(opciones.values()),
+        format_func=lambda x: next(k for k, v in opciones.items() if v == x),
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Actualizar Datos", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 # ============================================
 # PROCESAR DATOS RESUMEN
 # ============================================
