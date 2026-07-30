@@ -346,22 +346,25 @@ if pantalla_actual == "Resumen Ejecutivo":
     st.caption("✅ Datos actualizados desde Google Drive")
 
 # ============================================
-# PANTALLA 2: FICHAS VIP (PLACEHOLDER)
+# PANTALLA 2: FICHAS VIP + EXPLORADOR
 # ============================================
 elif pantalla_actual == "Fichas VIP":
     st.title("Fichas de Clientes VIP")
-    st.info("🚀 Pantalla en desarrollo para el PASO 4")
-
-# ============================================
-# PANTALLA 3: MACHETE (PLACEHOLDER)
-# ============================================
-elif pantalla_actual == "Machete Costos":
-    st.title("Machete Digital - Costos Sancor")
-    st.info("🚀 Pantalla en desarrollo para el PASO 5")
-
-# ============================================
-# PANTALLA 4: PROVEEDORES (PLACEHOLDER)
-# ============================================
-elif pantalla_actual == "Proveedores":
-    st.title("Facturación de Proveedores")
-    st.info("🚀 Pantalla en desarrollo para el PASO 5")
+    
+    # EXPLORADOR TEMPORAL DE DATOS
+    with st.expander("🔍 Explorador de Datos (Temporal - para desarrollo)"):
+        pestaña_explorar = st.selectbox(
+            "Selecciona una pestaña para explorar:",
+            list(datos.keys()),
+            key="explorador_vip"
+        )
+        
+        df_explorado = datos[pestaña_explorar]
+        st.write(f"**Pestaña:** `{pestaña_explorar}`")
+        st.write(f"**Tamaño:** {df_explorado.shape[0]} filas × {df_explorado.shape[1]} columnas")
+        st.write("**Columnas:**")
+        st.code(", ".join(list(df_explorado.columns)))
+        st.write("**Vista completa:**")
+        st.dataframe(df_explorado, use_container_width=True)
+    
+    st.info("🚀 Pantalla en desarrollo - Usa el explorador arriba para ver estructura de datos")
