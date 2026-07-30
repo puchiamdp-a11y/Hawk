@@ -387,10 +387,10 @@ elif pantalla_actual == "Fichas VIP":
                 # Mostrar tabla de ventas
                 st.write("### 📊 Ventas Mensuales (Último año)")
                 
-                # Formatear para visualización
+               # Formatear para visualización
                 df_display = df_ventas.copy()
-                df_display['Cant'] = df_display['Cant'].astype(int)
-                df_display['Premio'] = df_display['Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
+                df_display['Cant'] = pd.to_numeric(df_display['Cant'], errors='coerce').fillna(0).astype(int)
+                df_display['Premio'] = df_display['Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                 
                 st.dataframe(df_display, use_container_width=True, hide_index=True)
                 
