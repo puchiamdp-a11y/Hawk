@@ -658,7 +658,7 @@ elif pantalla_actual == "Machete Costos":
             </div>
             """, unsafe_allow_html=True)
             df_display_max = df_con_max.copy()
-            df_display_max['Costo'] = df_display_max['Costo'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "")
+           df_display_max['Costo'] = df_display_max['Costo'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "")
             st.dataframe(df_display_max, use_container_width=True, hide_index=True)
         
         with col2:
@@ -668,7 +668,7 @@ elif pantalla_actual == "Machete Costos":
             </div>
             """, unsafe_allow_html=True)
             df_display_sin_max = df_sin_max.copy()
-            df_display_sin_max['Costo'] = df_display_sin_max['Costo'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "")
+            df_display_sin_max['Costo'] = df_display_sin_max['Costo'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "")
             st.dataframe(df_display_sin_max, use_container_width=True, hide_index=True)
         
         st.markdown("---")
