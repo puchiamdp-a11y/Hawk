@@ -173,21 +173,28 @@ def cargar_datos():
 datos = cargar_datos()
 
 # ============================================
-# SELECTOR DE PANTALLA (SIDEBAR)
 # ============================================
-with st.sidebar:
-    st.write("### 📺 Pantallas")
-    pantalla_actual = st.selectbox(
-        "Selecciona una pantalla:",
-        ["Resumen Ejecutivo", "Fichas VIP", "Machete Costos", "Proveedores"],
-        label_visibility="collapsed"
-    )
-    
-    st.markdown("---")
-    
-    if st.button("🔄 Actualizar Datos", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+# SELECTOR DE PANTALLA (TABS HORIZONTALES)
+# ============================================
+pantalla_tabs = st.tabs([
+    "📊 Resumen Ejecutivo",
+    "👥 Fichas VIP",
+    "💰 Machete Costos",
+    "📦 Proveedores"
+])
+
+with pantalla_tabs[0]:
+    pantalla_actual = "Resumen Ejecutivo"
+with pantalla_tabs[1]:
+    pantalla_actual = "Fichas VIP"
+with pantalla_tabs[2]:
+    pantalla_actual = "Machete Costos"
+with pantalla_tabs[3]:
+    pantalla_actual = "Proveedores"
+
+# Determinar cuál tab está activo
+if "pantalla_activa" not in st.session_state:
+    st.session_state.pantalla_activa = "Resumen Ejecutivo"
 # ============================================
 # PROCESAR DATOS RESUMEN
 # ============================================
@@ -372,7 +379,7 @@ elif pantalla_actual == "Fichas VIP":
                 # ============================================
                 st.write("### 📋 Información del Cliente")
                 
-                info_rows = df_cliente.iloc[11:18]  # Filas después de datos mensuales
+                info_rows = df_cliente.iloc[16:22]  # Filas B16:E21 (información adicional)
                 
                 # Crear tabla de información
                 info_data = []
