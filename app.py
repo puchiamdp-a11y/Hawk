@@ -164,24 +164,26 @@ st.markdown("""
         width: 100%;
         height: 100px !important;
         font-size: 60px !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
-        background-color: #1E3A8A !important;
-        color: white !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        background-color: transparent !important;
+        color: #1E3A8A !important;
         border: none !important;
         margin-bottom: 10px !important;
         transition: all 0.3s ease !important;
+        box-shadow: none !important;
     }
     
     .stButton > button:hover {
-        background-color: #2E5AB5 !important;
-        transform: scale(1.05) !important;
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3) !important;
+        color: #2E5AB5 !important;
+        transform: scale(1.15) !important;
+        background-color: transparent !important;
     }
     
     .stButton > button:active {
-        background-color: #1a2a5c !important;
-        transform: scale(0.98) !important;
+        color: #1a2a5c !important;
+        transform: scale(0.95) !important;
+        background-color: transparent !important;
     }
 </style>
 """, unsafe_allow_html=True)
