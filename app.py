@@ -160,15 +160,15 @@ st.markdown("""
         width: 120px !important;
     }
     
-    .stButton > button {
+   .stButton > button {
         width: 100%;
         height: 100px !important;
         font-size: 60px !important;
         padding: 0 !important;
-        border-radius: 0 !important;
-        background-color: transparent !important;
+        border-radius: 8px !important;
+        background-color: #F3F4F6 !important;
         color: #1E3A8A !important;
-        border: none !important;
+        border: 1px solid #E5E7EB !important;
         margin-bottom: 10px !important;
         transition: all 0.3s ease !important;
         box-shadow: none !important;
@@ -176,14 +176,15 @@ st.markdown("""
     
     .stButton > button:hover {
         color: #2E5AB5 !important;
-        transform: scale(1.15) !important;
-        background-color: transparent !important;
+        background-color: #E0E7FF !important;
+        transform: scale(1.05) !important;
+        border: 1px solid #C7D2FE !important;
     }
     
     .stButton > button:active {
         color: #1a2a5c !important;
+        background-color: #C7D2FE !important;
         transform: scale(0.95) !important;
-        background-color: transparent !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -207,58 +208,52 @@ def cargar_datos():
 
 datos = cargar_datos()
 # ============================================
-# SELECTOR DE PANTALLA (SIDEBAR COMPACTO + AUTO-CIERRE)
+# SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
 # ============================================
 with st.sidebar:
-    st.write("")  # Espaciador
-    st.write("")  # Espaciador
+    st.write("")
+    st.write("")
     
-    # Inicializar session_state para pantalla actual
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-    # Botones de navegación
-    if st.button("📊", key="btn_resumen", use_container_width=True):
+    col1, col2, col3, col4, col5 = st.columns(1)
+    
+    if st.button("📊", key="btn_resumen"):
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
-        st.session_state.cerrar_sidebar = True
-        st.rerun()
     
-    if st.button("👥", key="btn_vip", use_container_width=True):
+    if st.button("👥", key="btn_vip"):
         st.session_state.pantalla_actual = "Fichas VIP"
-        st.session_state.cerrar_sidebar = True
-        st.rerun()
     
-    if st.button("💰", key="btn_costos", use_container_width=True):
+    if st.button("💰", key="btn_costos"):
         st.session_state.pantalla_actual = "Machete Costos"
-        st.session_state.cerrar_sidebar = True
-        st.rerun()
     
-    if st.button("📦", key="btn_prov", use_container_width=True):
+    if st.button("📦", key="btn_prov"):
         st.session_state.pantalla_actual = "Proveedores"
-        st.session_state.cerrar_sidebar = True
-        st.rerun()
     
-    st.write("")  # Espaciador
+    st.write("")
     st.markdown("---")
-    st.write("")  # Espaciador
+    st.write("")
     
-    if st.button("🔄", key="btn_refresh", use_container_width=True):
+    if st.button("🔄", key="btn_refresh"):
         st.cache_data.clear()
-        st.rerun()
 
-# Ocultar sidebar automáticamente
-if st.session_state.get("cerrar_sidebar", False):
-    st.markdown("""
-    <script>
-        document.querySelector('[data-testid="stSidebar"]').style.display = 'none';
-        setTimeout(() => {
-            document.querySelector('[data-testid="stSidebar"]').style.display = 'block';
-        }, 500);
-    </script>
-    """, unsafe_allow_html=True)
-    st.session_state.cerrar_sidebar = False
+# Forzar cierre de sidebar con CSS
+st.markdown("""
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            sidebar.style.marginLeft = '-250px';
+            sidebar.style.transition = 'margin-left 0.3s';
+            setTimeout(() => {
+                sidebar.style.marginLeft = '0px';
+            }, 100);
+        }
+    });
+</script>
+""", unsafe_allow_html=True)
 
-# Obtener pantalla actual
 pantalla_actual = st.session_state.pantalla_actual
 # ============================================
 # PROCESAR DATOS RESUMEN
@@ -440,21 +435,26 @@ elif pantalla_actual == "Fichas VIP":
                 st.write(f"## {cliente}")
                 
                 # ============================================
-                # INFORMACIÓN ADICIONAL (B16:E21 - filas 15-21)
+                # INFORMACIÓN ADICIONAL (B16:E21)
                 # ============================================
                 st.write("### 📋 Información del Cliente")
                 
-                info_rows = df_cliente.iloc[16:22]  # Filas B16:E21 (información adicional)
+                # Extraer desde fila 15 (índice 15, que es fila 16 en Excel)
+                info_rows = df_cliente.iloc[15:22]  # B16:E21
                 
-                # Crear tabla de información
+                # Limpiar y mostrar información
                 info_data = []
                 for idx, row in info_rows.iterrows():
-                    label = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
-                    val1 = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
-                    val2 = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else ""
+                    # Columna B: Etiqueta (Comercial, Administrativa, etc)
+                    # Columna C-E: Valores
+                    etiqueta = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+                    valor1 = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
+                    valor2 = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else ""
+                    valor3 = str(row.iloc[4]).strip() if pd.notna(row.iloc[4]) else ""
                     
-                    if label and label not in ["nan", ""]:
-                        info_data.append({"Dato": label, "Valor": f"{val1} {val2}".strip()})
+                    if etiqueta and etiqueta.lower() not in ["nan", "", "none"]:
+                        valor_completo = f"{valor1} {valor2} {valor3}".strip()
+                        info_data.append({"Dato": etiqueta, "Valor": valor_completo})
                 
                 if info_data:
                     df_info = pd.DataFrame(info_data)
