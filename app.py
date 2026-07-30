@@ -107,13 +107,14 @@ st.markdown("""
     }
     
     .emission-label {
-        font-size: 10px;
+        font-size: 14px;
+        font-weight: 600;
         color: #666;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
     }
     
     .emission-value {
-        font-size: 24px;
+        font-size: 32px;
         font-weight: bold;
         color: #1E3A8A;
     }
