@@ -501,9 +501,34 @@ elif pantalla_actual == "Fichas VIP":
                         valor_completo = " ".join(valores).strip()
                         info_data.append({"Dato": etiqueta, "Valor": valor_completo})
                 
-                if info_data:
-                    df_info = pd.DataFrame(info_data)
-                    st.dataframe(df_info, use_container_width=True, hide_index=True)
+               if info_data:
+                    st.markdown("""
+                    <div class="info-card">
+                    <h3>📋 Información del Cliente</h3>
+                    """, unsafe_allow_html=True)
+                    
+                    for i, item in enumerate(info_data):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown(f"""
+                            <div class="info-item">
+                                <div class="info-label">{item['Dato']}</div>
+                                <div class="info-value">{item['Valor']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        if i < len(info_data) - 1:
+                            with col2:
+                                if i + 1 < len(info_data):
+                                    st.markdown(f"""
+                                    <div class="info-item">
+                                        <div class="info-label">{info_data[i+1]['Dato']}</div>
+                                        <div class="info-value">{info_data[i+1]['Valor']}</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.info("No hay información adicional disponible")
                 
