@@ -19,40 +19,6 @@ URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=x
 # ESTILOS CORPORATIVOS (OPTIMIZADO PARA MOBILE)
 # ============================================
 st.markdown("""
-/* SIDEBAR COMPACTO Y PROFESIONAL */
-    [data-testid="stSidebar"] {
-        width: 120px !important;
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E5E7EB;
-    }
-    
-    [data-testid="stSidebarContent"] {
-        width: 120px !important;
-    }
-    
-    .stButton > button {
-        width: 100%;
-        height: 100px !important;
-        font-size: 60px !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
-        background-color: #1E3A8A !important;
-        color: white !important;
-        border: none !important;
-        margin-bottom: 10px !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stButton > button:hover {
-        background-color: #2E5AB5 !important;
-        transform: scale(1.05) !important;
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3) !important;
-    }
-    
-    .stButton > button:active {
-        background-color: #1a2a5c !important;
-        transform: scale(0.98) !important;
-    }
 <style>
     * {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -80,7 +46,6 @@ st.markdown("""
         margin-top: 1rem !important;
     }
     
-    /* GRILLA 2x2 PARA MÉTRICAS */
     .metrics-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -114,7 +79,6 @@ st.markdown("""
         opacity: 0.85;
     }
     
-    /* GRILLA DE EMISIÓN */
     .emission-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -183,6 +147,41 @@ st.markdown("""
     
     .stMetric label {
         font-size: 10px !important;
+    }
+    
+    /* SIDEBAR COMPACTO Y PROFESIONAL */
+    [data-testid="stSidebar"] {
+        width: 120px !important;
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E5E7EB;
+    }
+    
+    [data-testid="stSidebarContent"] {
+        width: 120px !important;
+    }
+    
+    .stButton > button {
+        width: 100%;
+        height: 100px !important;
+        font-size: 60px !important;
+        padding: 20px !important;
+        border-radius: 12px !important;
+        background-color: #1E3A8A !important;
+        color: white !important;
+        border: none !important;
+        margin-bottom: 10px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #2E5AB5 !important;
+        transform: scale(1.05) !important;
+        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3) !important;
+    }
+    
+    .stButton > button:active {
+        background-color: #1a2a5c !important;
+        transform: scale(0.98) !important;
     }
 </style>
 """, unsafe_allow_html=True)
