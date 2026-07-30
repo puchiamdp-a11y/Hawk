@@ -440,18 +440,24 @@ elif pantalla_actual == "Fichas VIP":
                 # Extraer desde fila 15 (índice 15, que es fila 16 en Excel)
                 info_rows = df_cliente.iloc[15:22]  # B16:E21
                 
-                # Limpiar y mostrar información
+               # Limpiar y mostrar información
                 info_data = []
+                num_cols = len(row)
+                
                 for idx, row in info_rows.iterrows():
                     # Columna B: Etiqueta (Comercial, Administrativa, etc)
-                    # Columna C-E: Valores
                     etiqueta = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
-                    valor1 = str(row.iloc[2]).strip() if pd.notna(row.iloc[2]) else ""
-                    valor2 = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else ""
-                    valor3 = str(row.iloc[4]).strip() if pd.notna(row.iloc[4]) else ""
+                    
+                    # Valores de las columnas restantes (flexible)
+                    valores = []
+                    for col_idx in range(2, len(row)):
+                        if col_idx < len(row) and pd.notna(row.iloc[col_idx]):
+                            val = str(row.iloc[col_idx]).strip()
+                            if val and val.lower() != "nan":
+                                valores.append(val)
                     
                     if etiqueta and etiqueta.lower() not in ["nan", "", "none"]:
-                        valor_completo = f"{valor1} {valor2} {valor3}".strip()
+                        valor_completo = " ".join(valores).strip()
                         info_data.append({"Dato": etiqueta, "Valor": valor_completo})
                 
                 if info_data:
