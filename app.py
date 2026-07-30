@@ -485,6 +485,9 @@ elif pantalla_actual == "Fichas VIP":
                 info_data = []
                 num_cols = len(row)
                 
+               # Limpiar y mostrar información
+                info_data = []
+                
                 for idx, row in info_rows.iterrows():
                     # Columna B: Etiqueta (Comercial, Administrativa, etc)
                     etiqueta = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
@@ -501,16 +504,18 @@ elif pantalla_actual == "Fichas VIP":
                         valor_completo = " ".join(valores).strip()
                         info_data.append({"Dato": etiqueta, "Valor": valor_completo})
                 
-               if info_data:
+                # Mostrar información con estilo
+                if info_data:
                     st.markdown("""
                     <div class="info-card">
                     <h3>📋 Información del Cliente</h3>
                     """, unsafe_allow_html=True)
                     
-                    for i, item in enumerate(info_data):
+                    for i in range(0, len(info_data), 2):
                         col1, col2 = st.columns(2)
                         
                         with col1:
+                            item = info_data[i]
                             st.markdown(f"""
                             <div class="info-item">
                                 <div class="info-label">{item['Dato']}</div>
@@ -518,16 +523,21 @@ elif pantalla_actual == "Fichas VIP":
                             </div>
                             """, unsafe_allow_html=True)
                         
-                        if i < len(info_data) - 1:
+                        if i + 1 < len(info_data):
                             with col2:
-                                if i + 1 < len(info_data):
-                                    st.markdown(f"""
-                                    <div class="info-item">
-                                        <div class="info-label">{info_data[i+1]['Dato']}</div>
-                                        <div class="info-value">{info_data[i+1]['Valor']}</div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                item = info_data[i + 1]
+                                st.markdown(f"""
+                                <div class="info-item">
+                                    <div class="info-label">{item['Dato']}</div>
+                                    <div class="info-value">{item['Valor']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
                     
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.info("No hay información adicional disponible")
+                
+                st.markdown("---")
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.info("No hay información adicional disponible")
