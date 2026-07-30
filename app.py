@@ -9,8 +9,7 @@ from io import BytesIO
 st.set_page_config(
     page_title="Hawk - Reportes",
     layout="wide",
-    initial_sidebar_state="collapsed",
-    theme="light"  # Fuerza tema claro en celular
+    initial_sidebar_state="collapsed"
 )
 
 GOOGLE_DRIVE_ID = "1gZPD9XUspcN8e4FGrgdEl1AacDew68RU"
