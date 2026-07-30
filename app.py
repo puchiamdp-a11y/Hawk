@@ -47,13 +47,20 @@ st.markdown("""
         margin-top: 1rem !important;
     }
     
+    /* GRILLA 2x2 PARA MÉTRICAS */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 10px 0;
+    }
+    
     .metric-box {
         background-color: #1E3A8A;
         color: white;
         padding: 12px;
         border-radius: 8px;
         text-align: center;
-        margin: 5px 0;
     }
     
     .metric-title {
@@ -63,13 +70,14 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: bold;
         margin: 3px 0;
+        word-break: break-word;
     }
     
     .metric-subtitle {
-        font-size: 10px;
+        font-size: 9px;
         opacity: 0.85;
     }
     
