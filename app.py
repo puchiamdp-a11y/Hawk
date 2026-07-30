@@ -592,3 +592,126 @@ elif pantalla_actual == "Fichas VIP":
     
     st.markdown("---")
     st.caption("✅ Fichas VIP cargadas desde Google Drive")
+    # ============================================
+# PANTALLA 3: MACHETE DIGITAL - COSTOS SANCOR
+# ============================================
+elif pantalla_actual == "Machete Costos":
+    st.title("Machete Digital - Costos Sancor")
+    
+    if "Costos Sancor" in datos:
+        df_costos = datos["Costos Sancor"]
+        
+        st.write("### 💰 Matriz de Coberturas y Costos")
+        
+        # Extraer datos (filas 2-16, columnas con headers en fila 1)
+        df_tabla = df_costos.iloc[2:16].copy()
+        
+        # Limpiar y organizar
+        df_con_max = df_tabla[['Unnamed: 3', 'Unnamed: 4']].copy()
+        df_con_max.columns = ['Cobertura', 'Costo']
+        df_con_max = df_con_max[df_con_max['Cobertura'].notna()]
+        
+        df_sin_max = df_tabla[['Unnamed: 6', 'Unnamed: 7']].copy()
+        df_sin_max.columns = ['Cobertura', 'Costo']
+        df_sin_max = df_sin_max[df_sin_max['Cobertura'].notna()]
+        
+        # Mostrar en dos columnas
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("#### 📌 CON MAX")
+            df_display_max = df_con_max.copy()
+            df_display_max['Costo'] = df_display_max['Costo'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "")
+            st.dataframe(df_display_max, use_container_width=True, hide_index=True)
+        
+        with col2:
+            st.write("#### 📌 SIN MAX")
+            df_display_sin_max = df_sin_max.copy()
+            df_display_sin_max['Costo'] = df_display_sin_max['Costo'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "")
+            st.dataframe(df_display_sin_max, use_container_width=True, hide_index=True)
+        
+        st.markdown("---")
+        st.caption("✅ Tabla de referencia rápida de coberturas Sancor")
+    
+    else:
+        st.error("❌ Pestaña 'Costos Sancor' no encontrada")
+
+
+# ============================================
+# PANTALLA 4: FACTURACIÓN DE PROVEEDORES
+# ============================================
+elif pantalla_actual == "Proveedores":
+    st.title("Facturación de Proveedores")
+    
+    if "FC Proveedores" in datos:
+        df_prov = datos["FC Proveedores"]
+        
+        st.write("### 📊 Comparativa de Facturación por Proveedor")
+        
+        # Extraer datos (filas 3-10 tienen los meses)
+        df_datos = df_prov.iloc[3:10].copy()
+        df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
+        
+        # Estructura: Cardinal (2,3), Addiuva (4,5), LLam BZR (6,7), LLam GRAL (8,9), Imprenta (10,11)
+        # Mes está en Unnamed: 1
+        
+        df_tabla = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5', 
+                             'Unnamed: 6', 'Unnamed: 7', 'Unnamed: 8', 'Unnamed: 9', 'Unnamed: 10', 'Unnamed: 11']].copy()
+        
+        df_tabla.columns = ['Mes', 'Cardinal_Cant', 'Cardinal_Precio', 'Addiuva_Cant', 'Addiuva_Precio',
+                           'BZR_Cant', 'BZR_Precio', 'GRAL_Cant', 'GRAL_Precio', 'Imprenta_Cant', 'Imprenta_Precio']
+        
+        df_tabla = df_tabla[df_tabla['Mes'].notna()]
+        
+        # Crear tabla formateada
+        df_display = df_tabla.copy()
+        
+        # Formatear cantidades
+        for col in ['Cardinal_Cant', 'Addiuva_Cant', 'BZR_Cant', 'GRAL_Cant', 'Imprenta_Cant']:
+            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').fillna(0).astype(int)
+        
+        # Formatear precios
+        for col in ['Cardinal_Precio', 'Addiuva_Precio', 'BZR_Precio', 'GRAL_Precio', 'Imprenta_Precio']:
+            df_display[col] = df_display[col].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+        
+        # Mostrar por proveedor
+        st.write("#### 📋 Cardinal")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(df_display[['Mes', 'Cardinal_Cant']], use_container_width=True, hide_index=True)
+        with col2:
+            st.dataframe(df_display[['Mes', 'Cardinal_Precio']], use_container_width=True, hide_index=True)
+        
+        st.write("#### 📋 Addiuva")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(df_display[['Mes', 'Addiuva_Cant']], use_container_width=True, hide_index=True)
+        with col2:
+            st.dataframe(df_display[['Mes', 'Addiuva_Precio']], use_container_width=True, hide_index=True)
+        
+        st.write("#### 📋 Llamadas al Doctor - BZR")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(df_display[['Mes', 'BZR_Cant']], use_container_width=True, hide_index=True)
+        with col2:
+            st.dataframe(df_display[['Mes', 'BZR_Precio']], use_container_width=True, hide_index=True)
+        
+        st.write("#### 📋 Llamadas al Doctor - GRAL")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(df_display[['Mes', 'GRAL_Cant']], use_container_width=True, hide_index=True)
+        with col2:
+            st.dataframe(df_display[['Mes', 'GRAL_Precio']], use_container_width=True, hide_index=True)
+        
+        st.write("#### 📋 Imprenta")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(df_display[['Mes', 'Imprenta_Cant']], use_container_width=True, hide_index=True)
+        with col2:
+            st.dataframe(df_display[['Mes', 'Imprenta_Precio']], use_container_width=True, hide_index=True)
+        
+        st.markdown("---")
+        st.caption("✅ Datos de facturación cargados desde Google Drive")
+    
+    else:
+        st.error("❌ Pestaña 'FC Proveedores' no encontrada")
