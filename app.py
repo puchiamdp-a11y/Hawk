@@ -473,26 +473,14 @@ elif pantalla_actual == "Fichas VIP":
                 df_cliente = datos[pestaña_fc]
                 st.write(f"## {cliente}")
                 
-                # ============================================
-                # INFORMACIÓN ADICIONAL (B16:E21)
-                # ============================================
+                # INFORMACIÓN ADICIONAL (B15:E21)
                 st.write("### 📋 Información del Cliente")
                 
-               # Extraer desde fila 14 (índice 14, que es fila 15 en Excel - COMERCIAL)
-                info_rows = df_cliente.iloc[14:21]  # B15:E21 (incluye Comercial)
-                
-               # Limpiar y mostrar información
-                info_data = []
-                num_cols = len(row)
-                
-               # Limpiar y mostrar información
+                info_rows = df_cliente.iloc[14:21]
                 info_data = []
                 
                 for idx, row in info_rows.iterrows():
-                    # Columna B: Etiqueta (Comercial, Administrativa, etc)
                     etiqueta = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
-                    
-                    # Valores de las columnas restantes (flexible)
                     valores = []
                     for col_idx in range(2, len(row)):
                         if col_idx < len(row) and pd.notna(row.iloc[col_idx]):
@@ -504,11 +492,10 @@ elif pantalla_actual == "Fichas VIP":
                         valor_completo = " ".join(valores).strip()
                         info_data.append({"Dato": etiqueta, "Valor": valor_completo})
                 
-                # Mostrar información con estilo
                 if info_data:
                     st.markdown("""
                     <div class="info-card">
-                    <h3>📋 Información del Cliente</h3>
+                    <h3>📋 Datos Principales</h3>
                     """, unsafe_allow_html=True)
                     
                     for i in range(0, len(info_data), 2):
@@ -534,23 +521,13 @@ elif pantalla_actual == "Fichas VIP":
                                 """, unsafe_allow_html=True)
                     
                     st.markdown("</div>", unsafe_allow_html=True)
-                else:
-                    st.info("No hay información adicional disponible")
-                
-                st.markdown("---")
-                    st.markdown("</div>", unsafe_allow_html=True)
-                else:
-                    st.info("No hay información adicional disponible")
                 
                 st.markdown("---")
                 
-                # Extraer datos (filas 3-9 tienen los meses)
+                # Extraer datos mensuales
                 df_datos = df_cliente.iloc[3:10].copy()
                 df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
-                # ============================================
-                # TOYOS: 4 columnas (solo GARANTIAS)
-                # ============================================
                 if cliente == "TOYOS":
                     st.write("### 📊 Garantías - Ventas Mensuales")
                     
@@ -558,14 +535,12 @@ elif pantalla_actual == "Fichas VIP":
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
                     df_table = df_table[df_table['Mes'].notna()]
                     
-                    # Formatear para tabla
                     df_display = df_table.copy()
                     df_display['GAR_Cant'] = pd.to_numeric(df_display['GAR_Cant'], errors='coerce').fillna(0).astype(int)
                     df_display['GAR_Premio'] = df_display['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                     
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
                     
-                    # Gráfico de COLUMNAS
                     st.write("### 📈 Evolución de Ventas")
                     df_graph = df_table.copy()
                     df_graph['GAR_Cant'] = pd.to_numeric(df_graph['GAR_Cant'], errors='coerce')
@@ -574,9 +549,6 @@ elif pantalla_actual == "Fichas VIP":
                     if not df_graph.empty:
                         st.bar_chart(df_graph.set_index('Mes')['GAR_Cant'])
                 
-                # ============================================
-                # SYNA, BAZAR, DRICCO, SENSEI: 8 columnas
-                # ============================================
                 else:
                     st.write("### 📊 Ventas por Cobertura")
                     
@@ -584,7 +556,6 @@ elif pantalla_actual == "Fichas VIP":
                     df_table.columns = ['Mes', 'ASS_Cant', 'ASS_Premio', 'GAR_Cant', 'GAR_Premio', 'TOT_Cant', 'TOT_Premio']
                     df_table = df_table[df_table['Mes'].notna()]
                     
-                    # Mostrar en 3 columnas
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
@@ -608,7 +579,6 @@ elif pantalla_actual == "Fichas VIP":
                         df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_tot, use_container_width=True, hide_index=True)
                     
-                    # Gráfico TOTAL de COLUMNAS
                     st.write("### 📈 Evolución Total de Ventas")
                     df_graph = df_table.copy()
                     df_graph['TOT_Cant'] = pd.to_numeric(df_graph['TOT_Cant'], errors='coerce')
