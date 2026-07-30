@@ -23,13 +23,6 @@ st.markdown("""
     body {
         background-color: #FFFFFF;
     }
-    .metric-card {
-        background-color: #1E3A8A;
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -40,17 +33,14 @@ st.title("🦅 Hawk - Reportes Internos")
 st.markdown("---")
 
 # ============================================
-# CONEXIÓN A GOOGLE DRIVE
+# CONEXIÓN A GOOGLE DRIVE (SIN CACHE PROBLEMÁTICO)
 # ============================================
-@st.cache_data
 def cargar_excel_de_google_drive():
     """
     Descarga el Excel directamente desde Google Drive
+    Retorna un diccionario con todas las pestañas
     """
-    # ID del archivo en Google Drive
     GOOGLE_DRIVE_ID = "1gZPD9XUspcN8e4FGrgdEl1AacDew68RU"
-    
-    # URL de exportación directa
     URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=xlsx"
     
     try:
@@ -58,13 +48,16 @@ def cargar_excel_de_google_drive():
         response = requests.get(URL, timeout=10)
         response.raise_for_status()
         
-        # Convertir a BytesIO para que pandas lo pueda leer
+        # Leer todas las pestañas en un diccionario
         archivo_excel = BytesIO(response.content)
-        
-        # Leer todas las pestañas
         excel_file = pd.ExcelFile(archivo_excel)
         
-        return excel_file, None
+        # Crear diccionario con todas las pestañas
+        datos = {}
+        for pestaña in excel_file.sheet_names:
+            datos[pestaña] = pd.read_excel(archivo_excel, sheet_name=pestaña)
+        
+        return datos, None
     
     except Exception as e:
         return None, f"❌ Error al conectar con Google Drive: {str(e)}"
@@ -75,7 +68,7 @@ def cargar_excel_de_google_drive():
 st.write("### 📊 Estado de Conexión")
 
 with st.spinner("⏳ Conectando con Google Drive..."):
-    excel_file, error = cargar_excel_de_google_drive()
+    datos, error = cargar_excel_de_google_drive()
 
 if error:
     st.error(error)
@@ -87,8 +80,7 @@ if error:
 st.success("✅ Conexión exitosa con Google Drive")
 st.write("### 📑 Pestañas Disponibles en el Excel:")
 
-pestañas = excel_file.sheet_names
-for pestaña in pestañas:
+for pestaña in datos.keys():
     st.write(f"✓ `{pestaña}`")
 
 # ============================================
@@ -97,18 +89,21 @@ for pestaña in pestañas:
 st.write("### 🔍 Vista Previa - Pestaña 'resumen':")
 
 try:
-    df_resumen = pd.read_excel(BytesIO(requests.get(
-        f"https://docs.google.com/spreadsheets/d/1gZPD9XUspcN8e4FGrgdEl1AacDew68RU/export?format=xlsx"
-    ).content), sheet_name="resumen")
-    
-    st.dataframe(df_resumen, use_container_width=True)
-    st.success("✅ Pestaña 'resumen' cargada correctamente")
-    
+    if "resumen" in datos:
+        df_resumen = datos["resumen"]
+        st.dataframe(df_resumen, use_container_width=True)
+        st.success(f"✅ Pestaña 'resumen' cargada correctamente ({len(df_resumen)} filas)")
+    else:
+        st.warning("⚠️ Pestaña 'resumen' no encontrada")
 except Exception as e:
-    st.warning(f"⚠️ No se pudo cargar 'resumen': {str(e)}")
+    st.warning(f"⚠️ Error al mostrar 'resumen': {str(e)}")
 
 # ============================================
-# RESUMEN FINAL
+# INFORMACIÓN DEBUG
 # ============================================
 st.markdown("---")
+with st.expander("🔧 Información Debug"):
+    st.write(f"**Pestañas encontradas:** {list(datos.keys())}")
+    st.write(f"**Número de pestañas:** {len(datos)}")
+
 st.info("✅ **PASO 2 completado:** Google Drive conectado y Excel leyéndose en vivo")
