@@ -181,7 +181,12 @@ with st.sidebar:
         ["Resumen Ejecutivo", "Fichas VIP", "Machete Costos", "Proveedores"],
         label_visibility="collapsed"
     )
-
+    
+    st.markdown("---")
+    
+    if st.button("🔄 Actualizar Datos", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 # ============================================
 # PROCESAR DATOS RESUMEN
 # ============================================
