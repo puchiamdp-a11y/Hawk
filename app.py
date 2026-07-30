@@ -9,7 +9,7 @@ from io import BytesIO
 st.set_page_config(
     page_title="Hawk - Reportes",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 GOOGLE_DRIVE_ID = "1gZPD9XUspcN8e4FGrgdEl1AacDew68RU"
@@ -28,7 +28,6 @@ st.markdown("""
         background-color: #FFFFFF !important;
     }
     
-    /* Reducir padding general */
     .main {
         padding: 0.5rem;
     }
@@ -100,10 +99,17 @@ st.markdown("""
         line-height: 1.5;
     }
     
-    /* Ocultar decoraciones innecesarias */
     .stMetric {
         background-color: transparent;
-        padding: 8px 0;
+        padding: 0 !important;
+    }
+    
+    .stMetric > div:first-child {
+        font-size: 10px !important;
+    }
+    
+    .stMetric label {
+        font-size: 10px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -125,6 +131,17 @@ def cargar_datos():
     return datos
 
 datos = cargar_datos()
+
+# ============================================
+# SELECTOR DE PANTALLA (SIDEBAR)
+# ============================================
+with st.sidebar:
+    st.write("### 📺 Pantallas")
+    pantalla_actual = st.selectbox(
+        "Selecciona una pantalla:",
+        ["Resumen Ejecutivo", "Fichas VIP", "Machete Costos", "Proveedores"],
+        label_visibility="collapsed"
+    )
 
 # ============================================
 # PROCESAR DATOS RESUMEN
@@ -165,8 +182,6 @@ for idx, row in df_comercios.iterrows():
 # ============================================
 df_pendiente = datos['Pendiente de informar']
 
-# Encontrar fila 19 (índice 18 en pandas, que es después del header)
-# La fila 19 es la última con los totales
 fila_totales = df_pendiente.iloc[-1]
 
 comercios_pendientes = {
@@ -205,80 +220,97 @@ for comercio in comercios_pendientes.keys():
                 comercios_pendientes[comercio]['meses_pendientes'].append(mes)
 
 # ============================================
-# ENCABEZADO (SIN HALCÓN)
+# PANTALLA 1: RESUMEN EJECUTIVO
 # ============================================
-st.title("Hawk - Reportes Internos")
-
-# ============================================
-# BLOQUE 1: MÉTRICAS DE JUNIO
-# ============================================
-st.write("*Junio 2026*")
-
-if junio is not None:
-    st.markdown(f"""
-    <div class="metrics-grid">
-        <div class="metric-box">
-            <div class="metric-title">Garantías</div>
-            <div class="metric-value">{int(junio.iloc[7]):,}</div>
-            <div class="metric-subtitle">Cantidad</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">Garantías</div>
-            <div class="metric-value">${junio.iloc[8]:,.0f}</div>
-            <div class="metric-subtitle">Premio</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">Asistencias</div>
-            <div class="metric-value">{int(junio.iloc[10]):,}</div>
-            <div class="metric-subtitle">Cantidad</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-title">Asistencias</div>
-            <div class="metric-value">${junio.iloc[11]:,.0f}</div>
-            <div class="metric-subtitle">Premio</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ============================================
-# BLOQUE 2: COMERCIOS FALTANTES
-# ============================================
-st.write("**Estado de Emisión**")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric("Total", total_comercios, delta=None)
-
-with col2:
-    st.metric("Pendientes", f"{pendientes_emitir} ⚠️", delta=None)
-
-with col3:
-    st.metric("Emitidos", f"{ya_emitidos} ✅", delta=None)
-
-with col4:
-    st.metric("Promedio", f"${promedio_ventas_pendientes:,.0f}", delta=None)
-
-# ============================================
-# BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
-# ============================================
-st.write("**Ventas Pendientes**")
-
-for comercio, datos_comercio in comercios_pendientes.items():
-    if datos_comercio['meses_pendientes']:  # Solo mostrar si hay meses pendientes
-        meses_str = ", ".join(datos_comercio['meses_pendientes'])
-        certs = int(datos_comercio['certificados']) if pd.notna(datos_comercio['certificados']) else 0
-        premio = datos_comercio['premio'] if pd.notna(datos_comercio['premio']) else 0
-        
+if pantalla_actual == "Resumen Ejecutivo":
+    st.title("Hawk - Reportes Internos")
+    
+    # BLOQUE 1: MÉTRICAS DE JUNIO
+    st.write("**Junio 2026**")
+    
+    if junio is not None:
         st.markdown(f"""
-        <div class="alert-card">
-            <div class="alert-title">{comercio}</div>
-            <div class="alert-content">
-                <strong>Meses:</strong> {meses_str}<br>
-                <strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}
+        <div class="metrics-grid">
+            <div class="metric-box">
+                <div class="metric-title">Garantías</div>
+                <div class="metric-value">{int(junio.iloc[7]):,}</div>
+                <div class="metric-subtitle">Cantidad</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Garantías</div>
+                <div class="metric-value">${junio.iloc[8]:,.0f}</div>
+                <div class="metric-subtitle">Premio</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Asistencias</div>
+                <div class="metric-value">{int(junio.iloc[10]):,}</div>
+                <div class="metric-subtitle">Cantidad</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Asistencias</div>
+                <div class="metric-value">${junio.iloc[11]:,.0f}</div>
+                <div class="metric-subtitle">Premio</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+    
+    # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
+    st.write("**Estado de Emisión**")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        col1a, col1b = st.columns(2)
+        with col1a:
+            st.metric("Total", total_comercios)
+        with col1b:
+            st.metric("Pendientes", pendientes_emitir)
+    
+    with col2:
+        col2a, col2b = st.columns(2)
+        with col2a:
+            st.metric("Emitidos", ya_emitidos)
+        with col2b:
+            st.metric("Cant Promedio", int(promedio_ventas_pendientes) if pd.notna(promedio_ventas_pendientes) else 0)
+    
+    # BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
+    st.write("**Ventas Pendientes**")
+    
+    for comercio, datos_comercio in comercios_pendientes.items():
+        if datos_comercio['meses_pendientes']:
+            meses_str = ", ".join(datos_comercio['meses_pendientes'])
+            certs = int(datos_comercio['certificados']) if pd.notna(datos_comercio['certificados']) else 0
+            premio = datos_comercio['premio'] if pd.notna(datos_comercio['premio']) else 0
+            
+            st.markdown(f"""
+            <div class="alert-card">
+                <div class="alert-title">{comercio}</div>
+                <div class="alert-content">
+                    <strong>Meses:</strong> {meses_str}<br>
+                    <strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.caption("✅ Datos actualizados desde Google Drive")
 
-st.markdown("---")
-st.caption("✅ Datos actualizados desde Google Drive")
+# ============================================
+# PANTALLA 2: FICHAS VIP (PLACEHOLDER)
+# ============================================
+elif pantalla_actual == "Fichas VIP":
+    st.title("Fichas de Clientes VIP")
+    st.info("🚀 Pantalla en desarrollo para el PASO 4")
+
+# ============================================
+# PANTALLA 3: MACHETE (PLACEHOLDER)
+# ============================================
+elif pantalla_actual == "Machete Costos":
+    st.title("Machete Digital - Costos Sancor")
+    st.info("🚀 Pantalla en desarrollo para el PASO 5")
+
+# ============================================
+# PANTALLA 4: PROVEEDORES (PLACEHOLDER)
+# ============================================
+elif pantalla_actual == "Proveedores":
+    st.title("Facturación de Proveedores")
+    st.info("🚀 Pantalla en desarrollo para el PASO 5")
