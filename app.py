@@ -353,11 +353,35 @@ elif pantalla_actual == "Fichas VIP":
     
     # EXPLORADOR TEMPORAL DE DATOS
     with st.expander("🔍 Explorador de Datos (Temporal - para desarrollo)"):
-        pestaña_explorar = st.selectbox(
-            "Selecciona una pestaña para explorar:",
-            list(datos.keys()),
-            key="explorador_vip"
-        )
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            pestaña_explorar = st.selectbox(
+                "Selecciona una pestaña para explorar:",
+                list(datos.keys()),
+                key="explorador_vip"
+            )
+        
+        with col2:
+            # Botón para descargar TODA la estructura en JSON
+            import json
+            resumen_completo = {}
+            
+            for pestaña, df in datos.items():
+                resumen_completo[pestaña] = {
+                    "columnas": list(df.columns),
+                    "filas": len(df),
+                    "primeras_10_filas": df.head(10).to_dict(orient='records')
+                }
+            
+            json_str = json.dumps(resumen_completo, indent=2, ensure_ascii=False)
+            
+            st.download_button(
+                label="📥 Descargar TODO",
+                data=json_str,
+                file_name="hawk_estructura_completa.json",
+                mime="application/json"
+            )
         
         df_explorado = datos[pestaña_explorar]
         st.write(f"**Pestaña:** `{pestaña_explorar}`")
@@ -367,4 +391,4 @@ elif pantalla_actual == "Fichas VIP":
         st.write("**Vista completa:**")
         st.dataframe(df_explorado, use_container_width=True)
     
-    st.info("🚀 Pantalla en desarrollo - Usa el explorador arriba para ver estructura de datos")
+    st.info("🚀 Pantalla en desarrollo - Descarga la estructura completa con el botón arriba")
