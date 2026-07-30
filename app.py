@@ -212,46 +212,33 @@ st.title("Hawk - Reportes Internos")
 # ============================================
 # BLOQUE 1: MÉTRICAS DE JUNIO
 # ============================================
-st.write("**Junio 2026**")
-
-col1, col2, col3, col4 = st.columns(4)
+st.write("*Junio 2026*")
 
 if junio is not None:
-    with col1:
-        st.markdown(f"""
+    st.markdown(f"""
+    <div class="metrics-grid">
         <div class="metric-box">
             <div class="metric-title">Garantías</div>
             <div class="metric-value">{int(junio.iloc[7]):,}</div>
             <div class="metric-subtitle">Cantidad</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
         <div class="metric-box">
             <div class="metric-title">Garantías</div>
             <div class="metric-value">${junio.iloc[8]:,.0f}</div>
             <div class="metric-subtitle">Premio</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
         <div class="metric-box">
             <div class="metric-title">Asistencias</div>
             <div class="metric-value">{int(junio.iloc[10]):,}</div>
             <div class="metric-subtitle">Cantidad</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
         <div class="metric-box">
             <div class="metric-title">Asistencias</div>
             <div class="metric-value">${junio.iloc[11]:,.0f}</div>
             <div class="metric-subtitle">Premio</div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
 # ============================================
 # BLOQUE 2: COMERCIOS FALTANTES
