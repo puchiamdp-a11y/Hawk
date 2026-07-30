@@ -217,7 +217,7 @@ with st.sidebar:
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-   if st.button("📊", key="btn_resumen", use_container_width=True):
+    if st.button("📊", key="btn_resumen", use_container_width=True):
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
     if st.button("👥", key="btn_vip", use_container_width=True):
@@ -234,13 +234,6 @@ with st.sidebar:
     st.write("")
     
     if st.button("🔄", key="btn_refresh", use_container_width=True):
-        st.cache_data.clear()
-    
-    st.write("")
-    st.markdown("---")
-    st.write("")
-    
-    if st.button("🔄", key="btn_refresh"):
         st.cache_data.clear()
 
 # Forzar cierre de sidebar con CSS
