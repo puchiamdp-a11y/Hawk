@@ -346,49 +346,68 @@ if pantalla_actual == "Resumen Ejecutivo":
     st.caption("✅ Datos actualizados desde Google Drive")
 
 # ============================================
-# PANTALLA 2: FICHAS VIP + EXPLORADOR
+# PANTALLA 2: FICHAS VIP CON TABS
 # ============================================
 elif pantalla_actual == "Fichas VIP":
     st.title("Fichas de Clientes VIP")
     
-    # EXPLORADOR TEMPORAL DE DATOS
-    with st.expander("🔍 Explorador de Datos (Temporal - para desarrollo)"):
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            pestaña_explorar = st.selectbox(
-                "Selecciona una pestaña para explorar:",
-                list(datos.keys()),
-                key="explorador_vip"
-            )
-        
-        with col2:
-            # Botón para descargar TODA la estructura en JSON
-            import json
-            resumen_completo = {}
-            
-            for pestaña, df in datos.items():
-                resumen_completo[pestaña] = {
-                    "columnas": list(df.columns),
-                    "filas": len(df),
-                    "primeras_10_filas": df.head(10).to_dict(orient='records')
-                }
-            
-            json_str = json.dumps(resumen_completo, indent=2, ensure_ascii=False)
-            
-            st.download_button(
-                label="📥 Descargar TODO",
-                data=json_str,
-                file_name="hawk_estructura_completa.json",
-                mime="application/json"
-            )
-        
-        df_explorado = datos[pestaña_explorar]
-        st.write(f"**Pestaña:** `{pestaña_explorar}`")
-        st.write(f"**Tamaño:** {df_explorado.shape[0]} filas × {df_explorado.shape[1]} columnas")
-        st.write("**Columnas:**")
-        st.code(", ".join(list(df_explorado.columns)))
-        st.write("**Vista completa:**")
-        st.dataframe(df_explorado, use_container_width=True)
+    # Definir clientes VIP y sus pestañas
+    clientes_vip = {
+        "SYNA": "FC SYNA",
+        "BAZAR": "FC BAZAR",
+        "TOYOS": "FC TOYOS",
+        "DRICCO": "FC DRICCO",
+        "SENSEI": "FC SENSEI"
+    }
     
-    st.info("🚀 Pantalla en desarrollo - Descarga la estructura completa con el botón arriba")
+    # Crear tabs para cada cliente
+    tabs = st.tabs([f"📌 {cliente}" for cliente in clientes_vip.keys()])
+    
+    for tab, (cliente, pestaña_fc) in zip(tabs, clientes_vip.items()):
+        with tab:
+            # Leer datos del cliente
+            if pestaña_fc in datos:
+                df_cliente = datos[pestaña_fc]
+                
+                # Mostrar nombre del cliente como título
+                st.write(f"## {cliente}")
+                
+                # Extraer datos de ventas (filas 3 en adelante, skipeando headers)
+                # Las filas 0-2 son títulos/headers
+                # Fila 3 es el header real: Mes, Cant, Premio
+                # Filas 4-10 son datos mensuales
+                
+                df_ventas = df_cliente.iloc[4:11].copy()  # Datos de Enero a Julio
+                df_ventas = df_ventas.dropna(how='all')  # Remover filas vacías
+                
+                # Limpiar columnas
+                df_ventas.columns = ['Unnamed: 0', 'Mes', 'Cant', 'Premio', 'Unnamed: 4', 'Unnamed: 5', 'Unnamed: 6', 'Unnamed: 7']
+                df_ventas = df_ventas[['Mes', 'Cant', 'Premio']]
+                
+                # Mostrar tabla de ventas
+                st.write("### 📊 Ventas Mensuales (Último año)")
+                
+                # Formatear para visualización
+                df_display = df_ventas.copy()
+                df_display['Cant'] = df_display['Cant'].astype(int)
+                df_display['Premio'] = df_display['Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "")
+                
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                
+                # Gráfico simple de evolución
+                st.write("### 📈 Evolución de Ventas")
+                
+                df_grafico = df_ventas.copy()
+                df_grafico = df_grafico[df_grafico['Mes'] != 'Julio']  # Excluir Julio vacío
+                df_grafico['Cant'] = pd.to_numeric(df_grafico['Cant'], errors='coerce')
+                
+                st.line_chart(df_grafico.set_index('Mes')['Cant'])
+                
+                # Placeholder para info extra (B16:E21)
+                st.write("### 📋 Información Adicional")
+                st.info("⚠️ Información de comercial, administrativa, facturación y vencimiento pendiente de integrar")
+            else:
+                st.error(f"❌ Pestaña '{pestaña_fc}' no encontrada en el Excel")
+    
+    st.markdown("---")
+    st.caption("✅ Datos de fichas VIP cargados desde Google Drive")
