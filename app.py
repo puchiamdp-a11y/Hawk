@@ -217,16 +217,24 @@ with st.sidebar:
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-    if st.button("📊", key="btn_resumen", use_container_width=True):
+   if st.button("📊", key="btn_resumen", use_container_width=True):
+        st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-    if st.button("👥", key="btn_vip"):
+    if st.button("👥", key="btn_vip", use_container_width=True):
         st.session_state.pantalla_actual = "Fichas VIP"
     
-    if st.button("💰", key="btn_costos"):
+    if st.button("💰", key="btn_costos", use_container_width=True):
         st.session_state.pantalla_actual = "Machete Costos"
     
-    if st.button("📦", key="btn_prov"):
+    if st.button("📦", key="btn_prov", use_container_width=True):
         st.session_state.pantalla_actual = "Proveedores"
+    
+    st.write("")
+    st.markdown("---")
+    st.write("")
+    
+    if st.button("🔄", key="btn_refresh", use_container_width=True):
+        st.cache_data.clear()
     
     st.write("")
     st.markdown("---")
