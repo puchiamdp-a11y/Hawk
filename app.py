@@ -217,10 +217,7 @@ with st.sidebar:
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
     
-    col1, col2, col3, col4, col5 = st.columns(1)
-    
-    if st.button("📊", key="btn_resumen"):
-        st.session_state.pantalla_actual = "Resumen Ejecutivo"
+    if st.button("📊", key="btn_resumen", use_container_width=True):
     
     if st.button("👥", key="btn_vip"):
         st.session_state.pantalla_actual = "Fichas VIP"
