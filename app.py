@@ -290,7 +290,57 @@ st.markdown("""
         font-size: 12px;
         line-height: 1.5;
     }
-    
+
+    .resumen-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-size: 13px;
+    }
+
+    .resumen-table td, .resumen-table th {
+        padding: 10px;
+        text-align: right;
+        border: 1px solid #E5E7EB;
+    }
+
+    .resumen-table th {
+        font-weight: bold;
+        color: white;
+        text-align: center;
+    }
+
+    .resumen-table td:first-child, .resumen-table th:first-child {
+        text-align: left;
+    }
+
+    .resumen-header-garantias {
+        background-color: #8DD68D;
+        color: white;
+    }
+
+    .resumen-header-asistencias {
+        background-color: #FFB380;
+        color: white;
+    }
+
+    .resumen-header-total {
+        background-color: #9DBDE0;
+        color: white;
+    }
+
+    .resumen-row-garantias {
+        background-color: #E8F5E8;
+    }
+
+    .resumen-row-asistencias {
+        background-color: #FFF4E6;
+    }
+
+    .resumen-row-total {
+        background-color: #E8F1F7;
+    }
+
     .provider-header {
         background-color: #E0E7FF;
         border-left: 4px solid #1E3A8A;
@@ -796,6 +846,81 @@ if pantalla_actual == "Resumen Ejecutivo":
                 """, unsafe_allow_html=True)
 
                 st.markdown("</div>", unsafe_allow_html=True)
+
+            # TABLA COMPLETA DE RESUMEN
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Extraer datos de todas las filas hasta la última con valor > 0 en columna D
+            ultima_fila_idx = 0
+            for idx in range(len(df_resumen) - 1, -1, -1):
+                try:
+                    valor = pd.to_numeric(df_resumen.iloc[idx, 3], errors='coerce')
+                    if pd.notna(valor) and valor > 0:
+                        ultima_fila_idx = idx
+                        break
+                except:
+                    continue
+
+            # Construir tabla HTML
+            tabla_html = '<table class="resumen-table">'
+
+            # Encabezados principales
+            tabla_html += '<tr>'
+            tabla_html += '<th style="text-align: left;">Mes</th>'
+            tabla_html += '<th colspan="3" class="resumen-header-garantias">GARANTÍAS</th>'
+            tabla_html += '<th colspan="3" class="resumen-header-asistencias">ASISTENCIAS</th>'
+            tabla_html += '<th colspan="3" class="resumen-header-total">TOTAL</th>'
+            tabla_html += '</tr>'
+
+            # Sub-encabezados
+            tabla_html += '<tr>'
+            tabla_html += '<th style="text-align: left;"></th>'
+            tabla_html += '<th class="resumen-header-garantias">Cant</th>'
+            tabla_html += '<th class="resumen-header-garantias">Premio</th>'
+            tabla_html += '<th class="resumen-header-garantias">Costo</th>'
+            tabla_html += '<th class="resumen-header-asistencias">Cant</th>'
+            tabla_html += '<th class="resumen-header-asistencias">Premio</th>'
+            tabla_html += '<th class="resumen-header-asistencias">Costo</th>'
+            tabla_html += '<th class="resumen-header-total">Cant</th>'
+            tabla_html += '<th class="resumen-header-total">Premio</th>'
+            tabla_html += '<th class="resumen-header-total">Costo</th>'
+            tabla_html += '</tr>'
+
+            # Filas de datos
+            for idx in range(1, ultima_fila_idx + 1):  # Empezar desde 1 para saltar encabezado
+                fila = df_resumen.iloc[idx]
+                mes = str(fila.iloc[1]).strip() if pd.notna(fila.iloc[1]) else ""
+                if mes and mes.lower() != "mes":
+                    # Garantías
+                    gtr_cant = int(pd.to_numeric(fila.iloc[5], errors='coerce') or 0)
+                    gtr_premio = float(pd.to_numeric(fila.iloc[6], errors='coerce') or 0)
+                    gtr_costo = float(pd.to_numeric(fila.iloc[7], errors='coerce') or 0)
+
+                    # Asistencias
+                    ast_cant = int(pd.to_numeric(fila.iloc[8], errors='coerce') or 0)
+                    ast_premio = float(pd.to_numeric(fila.iloc[9], errors='coerce') or 0)
+                    ast_costo = float(pd.to_numeric(fila.iloc[10], errors='coerce') or 0)
+
+                    # Total
+                    tot_cant = int(pd.to_numeric(fila.iloc[2], errors='coerce') or 0)
+                    tot_premio = float(pd.to_numeric(fila.iloc[3], errors='coerce') or 0)
+                    tot_costo = float(pd.to_numeric(fila.iloc[4], errors='coerce') or 0)
+
+                    tabla_html += '<tr>'
+                    tabla_html += f'<td style="text-align: left; font-weight: bold;">{mes}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias">{gtr_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias">${gtr_premio:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias">${gtr_costo:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias">{ast_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias">${ast_premio:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias">${ast_costo:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-total">{tot_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-total">${tot_premio:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-total">${tot_costo:,.0f}</td>'
+                    tabla_html += '</tr>'
+
+            tabla_html += '</table>'
+            st.markdown(tabla_html, unsafe_allow_html=True)
 
         except (ValueError, IndexError) as e:
             st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
