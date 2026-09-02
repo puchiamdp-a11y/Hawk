@@ -203,10 +203,10 @@ st.markdown("""
     
    .stButton > button {
         width: 100%;
-        height: 45px !important;
-        font-size: 14px !important;
+        height: 38px !important;
+        font-size: 13px !important;
         font-weight: 600 !important;
-        padding: 8px 12px !important;
+        padding: 6px 10px !important;
         border-radius: 8px !important;
         background-color: #F3F4F6 !important;
         color: #1E3A8A !important;
@@ -214,6 +214,7 @@ st.markdown("""
         margin-bottom: 10px !important;
         transition: all 0.3s ease !important;
         box-shadow: none !important;
+        white-space: nowrap !important;
     }
     
     .stButton > button:hover {
@@ -302,13 +303,13 @@ with st.sidebar:
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
 
-    if st.button("Resumen Ejecutivo", key="btn_resumen", use_container_width=True):
+    if st.button("Resumen", key="btn_resumen", use_container_width=True):
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
 
-    if st.button("Fichas VIP", key="btn_vip", use_container_width=True):
+    if st.button("Fichas", key="btn_vip", use_container_width=True):
         st.session_state.pantalla_actual = "Fichas VIP"
 
-    if st.button("Machete Costos", key="btn_costos", use_container_width=True):
+    if st.button("Costos Sancor", key="btn_costos", use_container_width=True):
         st.session_state.pantalla_actual = "Machete Costos"
 
     if st.button("Proveedores", key="btn_prov", use_container_width=True):
@@ -336,7 +337,7 @@ with st.sidebar:
 
     st.caption(f"📅 {time_text}")
 
-    if st.button("🔄 REFRESH", key="btn_refresh", use_container_width=True, help="Actualizar datos ahora de Google Sheets"):
+    if st.button("🔄 Actualizar", key="btn_refresh", use_container_width=True, help="Actualizar datos ahora de Google Sheets"):
         st.cache_data.clear()
         st.session_state.force_refresh = True
         st.rerun()
