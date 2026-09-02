@@ -279,9 +279,6 @@ def cargar_datos():
 
 datos = cargar_datos()
 
-# DEBUG: Mostrar hojas disponibles
-st.write("DEBUG - Hojas disponibles:", list(datos.keys()))
-
 # ============================================
 # SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
 # ============================================
@@ -411,8 +408,8 @@ for comercio in comercios_pendientes.keys():
 # PROCESAR DATOS POST EMISIÓN
 # ============================================
 post_emision_data = {}
-if "General" in datos:
-    df_general = datos['General']
+if "Post Emision" in datos:
+    df_general = datos['Post Emision']
 
     # Estructura de columnas:
     # B: Meses, C: GESA Cant, D: GESA Premio, E: GESA IVA, F: GESA Sellos
@@ -829,7 +826,7 @@ elif pantalla_actual == "Proveedores":
 elif pantalla_actual == "Post Emisión":
     st.title("Post Emisión")
 
-    if "General" in datos and post_emision_data:
+    if "Post Emision" in datos and post_emision_data:
         # SECCIÓN SUPERIOR: ÚLTIMO MES CON DATOS
         if ultimo_mes:
             datos_ultimo = post_emision_data[ultimo_mes]
@@ -951,4 +948,4 @@ elif pantalla_actual == "Post Emisión":
         st.caption("✅ Datos de Post Emisión cargados en vivo desde Google Drive")
 
     else:
-        st.error("❌ No se encontraron datos en la pestaña 'General' o no hay información disponible")
+        st.error("❌ No se encontraron datos en la pestaña 'Post Emision' o no hay información disponible")
