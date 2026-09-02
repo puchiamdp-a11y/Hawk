@@ -473,12 +473,22 @@ if "Post Emision" in datos:
             except (IndexError, ValueError):
                 pass
 
-    # Obtener el último mes con datos
+    # Obtener el último mes con datos (último que tenga valor en columna L - Total)
     ultimo_mes = None
-    if post_emision_data:
-        # Ordenar meses en orden cronológico
-        meses_con_datos = [m for m in meses_validos if m in post_emision_data]
-        ultimo_mes = meses_con_datos[-1] if meses_con_datos else None
+    ultima_fila_datos = None
+
+    if "Post Emision" in datos:
+        df_general = datos['Post Emision']
+        # Buscar la última fila que tenga datos en la columna L (índice 11 - Total)
+        for idx in range(len(df_general) - 1, -1, -1):
+            row = df_general.iloc[idx]
+            total_value = pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0
+            if total_value > 0:  # Última fila con datos
+                mes = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+                if mes in meses_validos:
+                    ultimo_mes = mes
+                    ultima_fila_datos = row
+                    break
 
 # ============================================
 # PANTALLA 1: RESUMEN EJECUTIVO
@@ -859,10 +869,29 @@ elif pantalla_actual == "Proveedores":
 elif pantalla_actual == "Post Emisión":
     st.title("Post Emisión")
 
-    if "Post Emision" in datos and post_emision_data:
+    if "Post Emision" in datos and ultima_fila_datos is not None:
         # SECCIÓN SUPERIOR: ÚLTIMO MES CON DATOS
         if ultimo_mes:
-            datos_ultimo = post_emision_data[ultimo_mes]
+            # Extraer datos directamente de la última fila
+            datos_ultimo = {
+                'GESA': {
+                    'cant': pd.to_numeric(ultima_fila_datos.iloc[2], errors='coerce') if pd.notna(ultima_fila_datos.iloc[2]) else 0,
+                    'premio': pd.to_numeric(ultima_fila_datos.iloc[3], errors='coerce') if pd.notna(ultima_fila_datos.iloc[3]) else 0,
+                    'iva': pd.to_numeric(ultima_fila_datos.iloc[4], errors='coerce') if pd.notna(ultima_fila_datos.iloc[4]) else 0,
+                    'sellos': pd.to_numeric(ultima_fila_datos.iloc[5], errors='coerce') if pd.notna(ultima_fila_datos.iloc[5]) else 0,
+                },
+                'BLISTER': {
+                    'cant': pd.to_numeric(ultima_fila_datos.iloc[6], errors='coerce') if pd.notna(ultima_fila_datos.iloc[6]) else 0,
+                    'premio': pd.to_numeric(ultima_fila_datos.iloc[7], errors='coerce') if pd.notna(ultima_fila_datos.iloc[7]) else 0,
+                    'iva': pd.to_numeric(ultima_fila_datos.iloc[8], errors='coerce') if pd.notna(ultima_fila_datos.iloc[8]) else 0,
+                    'sellos': pd.to_numeric(ultima_fila_datos.iloc[9], errors='coerce') if pd.notna(ultima_fila_datos.iloc[9]) else 0,
+                },
+                'TOTALES': {
+                    'cant': pd.to_numeric(ultima_fila_datos.iloc[10], errors='coerce') if pd.notna(ultima_fila_datos.iloc[10]) else 0,
+                    'total': pd.to_numeric(ultima_fila_datos.iloc[11], errors='coerce') if pd.notna(ultima_fila_datos.iloc[11]) else 0,
+                    'ajuste': pd.to_numeric(ultima_fila_datos.iloc[12], errors='coerce') if pd.notna(ultima_fila_datos.iloc[12]) else 0,
+                }
+            }
 
             st.markdown(f"""
             <div class="section-card">
@@ -949,27 +978,60 @@ elif pantalla_actual == "Post Emisión":
 
         st.markdown("---")
 
-        # TABLA HISTÓRICA
+        # TABLA HISTÓRICA - Mostrar todos los datos hasta la última fila
         st.write("### 📊 Histórico de Datos")
 
         # Construir tabla para visualización con estilos personalizados
         tabla_datos = []
-        for mes in [m for m in ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"] if m in post_emision_data]:
-            datos_mes = post_emision_data[mes]
-            tabla_datos.append({
-                'Mes': mes,
-                'Cant': int(datos_mes['GESA']['cant']),
-                'Premio': f"${datos_mes['GESA']['premio']:,.0f}",
-                'IVA': f"${datos_mes['GESA']['iva']:,.0f}",
-                'Sellos': f"${datos_mes['GESA']['sellos']:,.0f}",
-                'Cant ': int(datos_mes['BLISTER']['cant']),
-                'Premio ': f"${datos_mes['BLISTER']['premio']:,.0f}",
-                'IVA ': f"${datos_mes['BLISTER']['iva']:,.0f}",
-                'Sellos ': f"${datos_mes['BLISTER']['sellos']:,.0f}",
-                'Cant  ': int(datos_mes['TOTALES']['cant']),
-                'Total': f"${datos_mes['TOTALES']['total']:,.0f}",
-                'Ajuste': f"${datos_mes['TOTALES']['ajuste']:,.0f}",
-            })
+        if "Post Emision" in datos:
+            df_general = datos['Post Emision']
+            # Encontrar el índice de la última fila con datos
+            ultima_idx = None
+            for idx in range(len(df_general) - 1, -1, -1):
+                row = df_general.iloc[idx]
+                total_value = pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0
+                if total_value > 0:
+                    ultima_idx = idx
+                    break
+
+            # Iterar desde el principio hasta la última fila con datos
+            if ultima_idx is not None:
+                for idx in range(len(df_general)):
+                    if idx > ultima_idx:
+                        break
+                    row = df_general.iloc[idx]
+                    mes = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+
+                    if mes in meses_validos:
+                        # Extraer valores de esta fila
+                        gesa_cant = pd.to_numeric(row.iloc[2], errors='coerce') if pd.notna(row.iloc[2]) else 0
+                        gesa_premio = pd.to_numeric(row.iloc[3], errors='coerce') if pd.notna(row.iloc[3]) else 0
+                        gesa_iva = pd.to_numeric(row.iloc[4], errors='coerce') if pd.notna(row.iloc[4]) else 0
+                        gesa_sellos = pd.to_numeric(row.iloc[5], errors='coerce') if pd.notna(row.iloc[5]) else 0
+
+                        blister_cant = pd.to_numeric(row.iloc[6], errors='coerce') if pd.notna(row.iloc[6]) else 0
+                        blister_premio = pd.to_numeric(row.iloc[7], errors='coerce') if pd.notna(row.iloc[7]) else 0
+                        blister_iva = pd.to_numeric(row.iloc[8], errors='coerce') if pd.notna(row.iloc[8]) else 0
+                        blister_sellos = pd.to_numeric(row.iloc[9], errors='coerce') if pd.notna(row.iloc[9]) else 0
+
+                        total_cant = pd.to_numeric(row.iloc[10], errors='coerce') if pd.notna(row.iloc[10]) else 0
+                        total_value = pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0
+                        ajuste = pd.to_numeric(row.iloc[12], errors='coerce') if pd.notna(row.iloc[12]) else 0
+
+                        tabla_datos.append({
+                            'Mes': mes,
+                            'Cant': int(gesa_cant) if gesa_cant > 0 else '',
+                            'Premio': f"${gesa_premio:,.0f}" if gesa_premio > 0 else '',
+                            'IVA': f"${gesa_iva:,.0f}" if gesa_iva > 0 else '',
+                            'Sellos': f"${gesa_sellos:,.0f}" if gesa_sellos > 0 else '',
+                            'Cant ': int(blister_cant) if blister_cant > 0 else '',
+                            'Premio ': f"${blister_premio:,.0f}" if blister_premio > 0 else '',
+                            'IVA ': f"${blister_iva:,.0f}" if blister_iva > 0 else '',
+                            'Sellos ': f"${blister_sellos:,.0f}" if blister_sellos > 0 else '',
+                            'Cant  ': int(total_cant) if total_cant > 0 else '',
+                            'Total': f"${total_value:,.0f}" if total_value > 0 else '',
+                            'Ajuste': f"${ajuste:,.0f}" if ajuste != 0 else '',
+                        })
 
         if tabla_datos:
             df_historico = pd.DataFrame(tabla_datos)
