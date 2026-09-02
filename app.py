@@ -589,17 +589,17 @@ comercios_pendientes = {
     'PARDO': {
         'meses_pendientes': [],
         'certificados': fila_totales.iloc[3],  # D19
-        'premio': fila_totales.iloc[5]  # F19
+        'premio': fila_totales.iloc[4]  # E19
     },
     'DRICCO': {
         'meses_pendientes': [],
         'certificados': fila_totales.iloc[7],  # H19
-        'premio': fila_totales.iloc[9]  # J19
+        'premio': fila_totales.iloc[8]  # I19
     },
     'SENSEI': {
         'meses_pendientes': [],
         'certificados': fila_totales.iloc[11],  # L19
-        'premio': fila_totales.iloc[13]  # N19
+        'premio': fila_totales.iloc[12]  # M19
     }
 }
 
