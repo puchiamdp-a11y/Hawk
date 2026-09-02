@@ -118,7 +118,7 @@ st.markdown("""
     }
     
     .alert-card {
-        background-color: #1E3A8A;
+        background-color: #5B7FC8;
         color: white;
         padding: 12px;
         border-radius: 8px;
@@ -239,7 +239,7 @@ st.markdown("""
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 15px;
-        border-left: 5px solid #FFD700;
+        border-left: 5px solid #2563EB;
     }
     
     .section-title {
