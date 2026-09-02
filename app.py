@@ -261,23 +261,35 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
-# CARGAR DATOS (CON CACHE)
+# CARGAR DATOS (CON CACHE OPTIMIZADO)
 # ============================================
-@st.cache_data(ttl=3600)  # Cache de 1 hora
+import time
+from datetime import datetime
+
+@st.cache_data(ttl=300)  # Cache de 5 minutos (antes era 1 hora)
 def cargar_datos():
     """Carga datos frescos de Google Drive (con cache de 5 min)"""
     response = requests.get(URL, timeout=10)
     archivo_excel = BytesIO(response.content)
-    
+
     datos = {}
     excel_file = pd.ExcelFile(archivo_excel)
-    
+
     for pestaña in excel_file.sheet_names:
         datos[pestaña] = pd.read_excel(archivo_excel, sheet_name=pestaña)
-    
+
     return datos
 
+# Inicializar session state para el timestamp
+if 'last_update_time' not in st.session_state:
+    st.session_state.last_update_time = datetime.now()
+
 datos = cargar_datos()
+
+# Actualizar timestamp después de cargar los datos
+if st.session_state.get('force_refresh', False):
+    st.session_state.last_update_time = datetime.now()
+    st.session_state.force_refresh = False
 
 # ============================================
 # SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
@@ -308,8 +320,25 @@ with st.sidebar:
     st.markdown("---")
     st.write("")
 
-    if st.button("🔄", key="btn_refresh", use_container_width=True):
+    # Mostrar timestamp de última actualización
+    last_update = st.session_state.last_update_time
+    time_since_update = (datetime.now() - last_update).total_seconds()
+
+    if time_since_update < 60:
+        time_text = "Hace unos segundos"
+    elif time_since_update < 3600:
+        mins = int(time_since_update // 60)
+        time_text = f"Hace {mins} min"
+    else:
+        hours = int(time_since_update // 3600)
+        time_text = f"Hace {hours}h"
+
+    st.caption(f"📅 {time_text}")
+
+    if st.button("🔄 REFRESH", key="btn_refresh", use_container_width=True, help="Actualizar datos ahora de Google Sheets"):
         st.cache_data.clear()
+        st.session_state.force_refresh = True
+        st.rerun()
 
 # Forzar cierre de sidebar con CSS
 st.markdown("""
@@ -530,7 +559,9 @@ if pantalla_actual == "Resumen Ejecutivo":
             """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.caption("✅ Datos actualizados desde Google Drive")
+    last_update = st.session_state.last_update_time
+    formatted_time = last_update.strftime("%H:%M:%S")
+    st.caption(f"✅ Última actualización: {formatted_time} | Próxima auto-actualización en ~5 min")
 
 # ============================================
 # PANTALLA 2: FICHAS VIP CON TABS
@@ -815,7 +846,9 @@ elif pantalla_actual == "Proveedores":
         st.dataframe(df_imprenta, use_container_width=True, hide_index=True)
         
         st.markdown("---")
-        st.caption("✅ Datos de facturación cargados desde Google Drive")
+        last_update = st.session_state.last_update_time
+        formatted_time = last_update.strftime("%H:%M:%S")
+        st.caption(f"✅ Actualizado: {formatted_time} | Presiona 🔄 REFRESH si ves datos desactualizados")
     
     else:
         st.error("❌ Pestaña 'FC Proveedores' no encontrada")
@@ -996,7 +1029,9 @@ elif pantalla_actual == "Post Emisión":
             st.info("📭 No hay datos disponibles para mostrar")
 
         st.markdown("---")
-        st.caption("✅ Datos de Post Emisión cargados en vivo desde Google Drive")
+        last_update = st.session_state.last_update_time
+        formatted_time = last_update.strftime("%H:%M:%S")
+        st.caption(f"✅ Actualizado: {formatted_time} | Se actualiza cada 5 minutos automáticamente")
 
     else:
         st.error("❌ No se encontraron datos en la pestaña 'Post Emision' o no hay información disponible")
