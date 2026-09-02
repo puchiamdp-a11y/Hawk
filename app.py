@@ -456,6 +456,15 @@ def obtener_ultima_fila_datos(df, col_indice=3):
 
 ultima_fila_resumen = obtener_ultima_fila_datos(df_resumen)
 
+# DEBUG: Ver estructura de la hoja Resumen
+import sys
+print(f"DEBUG - Columnas en df_resumen: {len(df_resumen.columns)}", file=sys.stderr)
+print(f"DEBUG - Filas en df_resumen: {len(df_resumen)}", file=sys.stderr)
+print(f"DEBUG - Nombres de columnas: {list(df_resumen.columns)}", file=sys.stderr)
+if ultima_fila_resumen is not None:
+    print(f"DEBUG - Última fila valores: {ultima_fila_resumen.values}", file=sys.stderr)
+    print(f"DEBUG - Cantidad de valores en última fila: {len(ultima_fila_resumen)}", file=sys.stderr)
+
 # ============================================
 # PROCESAR DATOS COMERCIOS
 # ============================================
