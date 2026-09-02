@@ -446,24 +446,15 @@ def obtener_fila_mes(df, mes_nombre):
 mayo = obtener_fila_mes(df_resumen, "Mayo")
 junio = obtener_fila_mes(df_resumen, "Junio")
 
-def obtener_ultima_fila_datos(df, col_indice=3):
-    """Encuentra la última fila con datos en la columna especificada"""
+def obtener_ultima_fila_datos(df, col_indice=0):
+    """Encuentra la última fila con datos en la columna especificada (Mes)"""
     for idx in range(len(df) - 1, -1, -1):
         valor = df.iloc[idx, col_indice]
-        if pd.notna(valor) and str(valor).strip() != "":
+        if pd.notna(valor) and str(valor).strip() != "" and str(valor).strip().lower() != "mes":
             return df.iloc[idx]
     return None
 
 ultima_fila_resumen = obtener_ultima_fila_datos(df_resumen)
-
-# DEBUG: Ver estructura de la hoja Resumen
-import sys
-print(f"DEBUG - Columnas en df_resumen: {len(df_resumen.columns)}", file=sys.stderr)
-print(f"DEBUG - Filas en df_resumen: {len(df_resumen)}", file=sys.stderr)
-print(f"DEBUG - Nombres de columnas: {list(df_resumen.columns)}", file=sys.stderr)
-if ultima_fila_resumen is not None:
-    print(f"DEBUG - Última fila valores: {ultima_fila_resumen.values}", file=sys.stderr)
-    print(f"DEBUG - Cantidad de valores en última fila: {len(ultima_fila_resumen)}", file=sys.stderr)
 
 # ============================================
 # PROCESAR DATOS COMERCIOS
@@ -665,20 +656,24 @@ if pantalla_actual == "Resumen Ejecutivo":
     if ultima_fila_resumen is not None:
         st.write("**Resumen de Ventas**")
 
-        # Estructura esperada: Garantías (Q, P, C), Asistencias (Q, P, C), Total (Q, P, C)
-        # Suponiendo columnas: D=Mes, E-G=Garantías, H-J=Asistencias, K-M=Total
+        # Estructura de la hoja Resumen:
+        # A=Mes, B-D=TOTAL(Cant,Premio,Costo), E-G=GARANTIAS(Cant,Premio,Costo), H-J=ASISTENCIAS(Cant,Premio,Costo)
+        # Índices (0-based): 0=Mes, 1-3=TOTAL, 4-6=GARANTIAS, 7-9=ASISTENCIAS
         try:
+            # GARANTÍAS: índices 4, 5, 6
             garantias_cant = int(ultima_fila_resumen.iloc[4]) if pd.notna(ultima_fila_resumen.iloc[4]) else 0
             garantias_premio = float(ultima_fila_resumen.iloc[5]) if pd.notna(ultima_fila_resumen.iloc[5]) else 0
             garantias_costo = float(ultima_fila_resumen.iloc[6]) if pd.notna(ultima_fila_resumen.iloc[6]) else 0
 
+            # ASISTENCIAS: índices 7, 8, 9
             asistencias_cant = int(ultima_fila_resumen.iloc[7]) if pd.notna(ultima_fila_resumen.iloc[7]) else 0
             asistencias_premio = float(ultima_fila_resumen.iloc[8]) if pd.notna(ultima_fila_resumen.iloc[8]) else 0
             asistencias_costo = float(ultima_fila_resumen.iloc[9]) if pd.notna(ultima_fila_resumen.iloc[9]) else 0
 
-            total_cant = int(ultima_fila_resumen.iloc[10]) if pd.notna(ultima_fila_resumen.iloc[10]) else 0
-            total_premio = float(ultima_fila_resumen.iloc[11]) if pd.notna(ultima_fila_resumen.iloc[11]) else 0
-            total_costo = float(ultima_fila_resumen.iloc[12]) if pd.notna(ultima_fila_resumen.iloc[12]) else 0
+            # TOTAL: índices 1, 2, 3
+            total_cant = int(ultima_fila_resumen.iloc[1]) if pd.notna(ultima_fila_resumen.iloc[1]) else 0
+            total_premio = float(ultima_fila_resumen.iloc[2]) if pd.notna(ultima_fila_resumen.iloc[2]) else 0
+            total_costo = float(ultima_fila_resumen.iloc[3]) if pd.notna(ultima_fila_resumen.iloc[3]) else 0
 
             st.markdown(f"""
             <div class="metrics-grid">
