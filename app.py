@@ -410,32 +410,34 @@ post_emision_data = {}
 if "General" in datos:
     df_general = datos['General']
 
-    # Definir estructura de datos esperada
-    # Asumimos filas con estructura: [Mes, GESA_Cant, GESA_Premio, GESA_IVA, GESA_Sellos, BLISTER_Cant, BLISTER_Premio, BLISTER_IVA, BLISTER_Sellos, TOTALES_Cant, TOTALES_Total, TOTALES_Ajuste]
+    # Estructura de columnas:
+    # B: Meses, C: GESA Cant, D: GESA Premio, E: GESA IVA, F: GESA Sellos
+    # G: BLISTER Cant, H: BLISTER Premio, I: BLISTER IVA, J: BLISTER Sellos
+    # K: Total Cant, L: Total Premio, M: Ajustes
     meses_post = ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"]
 
     for idx, row in df_general.iterrows():
-        mes = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
+        mes = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
 
         if mes in meses_post:
             try:
                 post_emision_data[mes] = {
                     'GESA': {
-                        'cant': pd.to_numeric(row.iloc[1], errors='coerce') if pd.notna(row.iloc[1]) else 0,
-                        'premio': pd.to_numeric(row.iloc[2], errors='coerce') if pd.notna(row.iloc[2]) else 0,
-                        'iva': pd.to_numeric(row.iloc[3], errors='coerce') if pd.notna(row.iloc[3]) else 0,
-                        'sellos': pd.to_numeric(row.iloc[4], errors='coerce') if pd.notna(row.iloc[4]) else 0,
+                        'cant': pd.to_numeric(row.iloc[2], errors='coerce') if pd.notna(row.iloc[2]) else 0,
+                        'premio': pd.to_numeric(row.iloc[3], errors='coerce') if pd.notna(row.iloc[3]) else 0,
+                        'iva': pd.to_numeric(row.iloc[4], errors='coerce') if pd.notna(row.iloc[4]) else 0,
+                        'sellos': pd.to_numeric(row.iloc[5], errors='coerce') if pd.notna(row.iloc[5]) else 0,
                     },
                     'BLISTER': {
-                        'cant': pd.to_numeric(row.iloc[5], errors='coerce') if pd.notna(row.iloc[5]) else 0,
-                        'premio': pd.to_numeric(row.iloc[6], errors='coerce') if pd.notna(row.iloc[6]) else 0,
-                        'iva': pd.to_numeric(row.iloc[7], errors='coerce') if pd.notna(row.iloc[7]) else 0,
-                        'sellos': pd.to_numeric(row.iloc[8], errors='coerce') if pd.notna(row.iloc[8]) else 0,
+                        'cant': pd.to_numeric(row.iloc[6], errors='coerce') if pd.notna(row.iloc[6]) else 0,
+                        'premio': pd.to_numeric(row.iloc[7], errors='coerce') if pd.notna(row.iloc[7]) else 0,
+                        'iva': pd.to_numeric(row.iloc[8], errors='coerce') if pd.notna(row.iloc[8]) else 0,
+                        'sellos': pd.to_numeric(row.iloc[9], errors='coerce') if pd.notna(row.iloc[9]) else 0,
                     },
                     'TOTALES': {
-                        'cant': pd.to_numeric(row.iloc[9], errors='coerce') if pd.notna(row.iloc[9]) else 0,
-                        'total': pd.to_numeric(row.iloc[10], errors='coerce') if pd.notna(row.iloc[10]) else 0,
-                        'ajuste': pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0,
+                        'cant': pd.to_numeric(row.iloc[10], errors='coerce') if pd.notna(row.iloc[10]) else 0,
+                        'total': pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0,
+                        'ajuste': pd.to_numeric(row.iloc[12], errors='coerce') if pd.notna(row.iloc[12]) else 0,
                     }
                 }
             except (IndexError, ValueError):
@@ -900,12 +902,14 @@ elif pantalla_actual == "Post Emisión":
                 </div>
                 """, unsafe_allow_html=True)
 
-                st.markdown(f"""
-                <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
-                    <div class="info-label">Ajuste</div>
-                    <div class="info-value">${datos_ultimo['TOTALES']['ajuste']:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                # Solo mostrar Ajuste si tiene datos (no es 0)
+                if datos_ultimo['TOTALES']['ajuste'] != 0:
+                    st.markdown(f"""
+                    <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
+                        <div class="info-label">Ajuste</div>
+                        <div class="info-value">${datos_ultimo['TOTALES']['ajuste']:,.0f}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -922,8 +926,12 @@ elif pantalla_actual == "Post Emisión":
                 'Mes': mes,
                 'GESA - Cant': int(datos_mes['GESA']['cant']),
                 'GESA - Premio': f"${datos_mes['GESA']['premio']:,.0f}",
+                'GESA - IVA': f"${datos_mes['GESA']['iva']:,.0f}",
+                'GESA - Sellos': f"${datos_mes['GESA']['sellos']:,.0f}",
                 'BLISTER - Cant': int(datos_mes['BLISTER']['cant']),
                 'BLISTER - Premio': f"${datos_mes['BLISTER']['premio']:,.0f}",
+                'BLISTER - IVA': f"${datos_mes['BLISTER']['iva']:,.0f}",
+                'BLISTER - Sellos': f"${datos_mes['BLISTER']['sellos']:,.0f}",
                 'TOTALES - Cant': int(datos_mes['TOTALES']['cant']),
                 'TOTALES - Total': f"${datos_mes['TOTALES']['total']:,.0f}",
                 'TOTALES - Ajuste': f"${datos_mes['TOTALES']['ajuste']:,.0f}",
