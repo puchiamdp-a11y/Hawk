@@ -278,6 +278,10 @@ def cargar_datos():
     return datos
 
 datos = cargar_datos()
+
+# DEBUG: Mostrar hojas disponibles
+st.write("DEBUG - Hojas disponibles:", list(datos.keys()))
+
 # ============================================
 # SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
 # ============================================
