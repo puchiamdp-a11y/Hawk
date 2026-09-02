@@ -285,27 +285,50 @@ st.markdown("""
     }
 
     /* ESTILOS PARA EXPANDERS COMPACTOS Y CENTRADOS */
+    /* Aumentar tamaño del expander y su label */
+    [data-testid="stExpander"] {
+        margin: 8px 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    [data-testid="stExpander"] summary {
+        font-size: 16px !important;
+        font-weight: bold !important;
+        padding: 12px !important;
+    }
+
     /* Reducir espaciado dentro de expanders */
     [data-testid="expanderContent"] {
         padding: 8px 0 !important;
         margin: 0 !important;
     }
 
-    [data-testid="stExpander"] {
-        margin: 8px 0 !important;
-        padding: 0 !important;
-    }
-
-    /* Centrar valores numéricos en todas las columnas de dataframes */
-    [data-testid="dataFrame"] tbody td,
-    [data-testid="dataFrame"] thead th {
+    /* Centrar valores numéricos en dataframes - selectores más específicos */
+    div[data-testid="dataFrame"] table td,
+    div[data-testid="dataFrame"] table th {
         text-align: center !important;
         padding: 6px 4px !important;
     }
 
     /* Alineación especial para primera columna (Mes) - a la izquierda */
-    [data-testid="dataFrame"] tbody td:first-child,
-    [data-testid="dataFrame"] thead th:first-child {
+    div[data-testid="dataFrame"] table td:first-child,
+    div[data-testid="dataFrame"] table th:first-child {
+        text-align: left !important;
+    }
+
+    /* Asegurar que todas las celdas estén centradas */
+    [role="gridcell"] {
+        text-align: center !important;
+    }
+
+    [role="columnheader"] {
+        text-align: center !important;
+    }
+
+    /* Primera columna siempre a la izquierda */
+    [role="row"] > [role="gridcell"]:first-child,
+    [role="row"] > [role="columnheader"]:first-child {
         text-align: left !important;
     }
 </style>
