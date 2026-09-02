@@ -806,7 +806,7 @@ elif pantalla_actual == "Proveedores":
             df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
             df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_cardinal, use_container_width=True, hide_index=True)
+            st.dataframe(df_cardinal, hide_index=True)
 
         # ADDIUVA
         with st.expander("💊 Addiuva"):
@@ -814,7 +814,7 @@ elif pantalla_actual == "Proveedores":
             df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
             df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_addiuva, use_container_width=True, hide_index=True)
+            st.dataframe(df_addiuva, hide_index=True)
 
         # LLAMADAS AL DOCTOR - BZR
         with st.expander("☎️ Llamadas al Doctor - BZR"):
@@ -822,7 +822,7 @@ elif pantalla_actual == "Proveedores":
             df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
             df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_bzr, use_container_width=True, hide_index=True)
+            st.dataframe(df_bzr, hide_index=True)
 
         # LLAMADAS AL DOCTOR - GRAL
         with st.expander("☎️ Llamadas al Doctor - GRAL"):
@@ -830,7 +830,7 @@ elif pantalla_actual == "Proveedores":
             df_gral.columns = ['Mes', 'Cantidad', 'Precio']
             df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_gral, use_container_width=True, hide_index=True)
+            st.dataframe(df_gral, hide_index=True)
 
         # IMPRENTA
         with st.expander("🖨️ Imprenta"):
@@ -838,7 +838,7 @@ elif pantalla_actual == "Proveedores":
             df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
             df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_imprenta, use_container_width=True, hide_index=True)
+            st.dataframe(df_imprenta, hide_index=True)
         
         st.markdown("---")
         last_update = st.session_state.last_update_time
