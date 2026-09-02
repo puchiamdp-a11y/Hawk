@@ -694,18 +694,8 @@ if pantalla_actual == "Resumen Ejecutivo":
             meses_str = ", ".join(datos_comercio['meses_pendientes'])
             certs = int(datos_comercio['certificados']) if pd.notna(datos_comercio['certificados']) else 0
             premio = datos_comercio['premio'] if pd.notna(datos_comercio['premio']) else 0
-
-            tarjetas_html += f"""
-            <div class="alert-card-inline">
-                <div class="alert-title-inline">{comercio}</div>
-                <div class="alert-content-inline">
-                    <strong>Meses:</strong> {meses_str}<br>
-                    <strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}
-                </div>
-            </div>
-            """
+            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}</div></div>'
     tarjetas_html += '</div>'
-
     st.markdown(tarjetas_html, unsafe_allow_html=True)
     
     # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
