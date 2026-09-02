@@ -262,6 +262,27 @@ st.markdown("""
         color: #1E3A8A !important;
         margin: 0 !important;
     }
+
+    /* OPTIMIZAR ESPACIADO DE COLUMNAS EN TABLAS */
+    [data-testid="dataFrame"] {
+        width: 100% !important;
+    }
+
+    [data-testid="dataFrame"] td {
+        padding: 8px 4px !important;
+    }
+
+    [data-testid="dataFrame"] th {
+        padding: 8px 4px !important;
+    }
+
+    .stDataFrame {
+        width: 100% !important;
+    }
+
+    .stDataFrame > div {
+        width: 100% !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
