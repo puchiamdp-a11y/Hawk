@@ -603,7 +603,7 @@ comercios_pendientes = {
     }
 }
 
-meses_orden = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio"]
+meses_orden = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
 comercios_cols = {
     'PARDO': {'cant': 3, 'ge': 4, 'cant_ass': 5, 'ass': 6},
