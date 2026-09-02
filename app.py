@@ -283,6 +283,39 @@ st.markdown("""
     .stDataFrame > div {
         width: 100% !important;
     }
+
+    /* ESTILOS PARA EXPANDERS COMPACTOS Y CENTRADOS */
+    /* Reducir espaciado dentro de expanders */
+    [data-testid="expanderContent"] {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    [data-testid="stExpander"] {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Centrar valores numéricos en todas las columnas de dataframes */
+    [data-testid="dataFrame"] tbody td,
+    [data-testid="dataFrame"] thead th {
+        text-align: center !important;
+    }
+
+    /* Alineación especial para primera columna (Mes) - a la izquierda */
+    [data-testid="dataFrame"] tbody td:first-child,
+    [data-testid="dataFrame"] thead th:first-child {
+        text-align: left !important;
+    }
+
+    /* Estilos para títulos grandes de proveedores */
+    .provider-title {
+        font-size: 20px !important;
+        font-weight: bold !important;
+        color: #1E3A8A !important;
+        margin: 15px 0 8px 0 !important;
+        padding: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -822,44 +855,49 @@ elif pantalla_actual == "Proveedores":
         df_tabla = df_tabla[df_tabla['Mes'].notna()]
 
         # CARDINAL
-        with st.expander("🏥 Cardinal"):
+        st.markdown('<div class="provider-title">🏥 <strong>Cardinal</strong></div>', unsafe_allow_html=True)
+        with st.expander("Detalles"):
             df_cardinal = df_tabla[['Mes', 'Cardinal_Cant', 'Cardinal_Precio']].copy()
             df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
             df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_cardinal, hide_index=True, width=400)
+            st.dataframe(df_cardinal, hide_index=True, use_container_width=True)
 
         # ADDIUVA
-        with st.expander("💊 Addiuva"):
+        st.markdown('<div class="provider-title">💊 <strong>Addiuva</strong></div>', unsafe_allow_html=True)
+        with st.expander("Detalles"):
             df_addiuva = df_tabla[['Mes', 'Addiuva_Cant', 'Addiuva_Precio']].copy()
             df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
             df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_addiuva, hide_index=True, width=400)
+            st.dataframe(df_addiuva, hide_index=True, use_container_width=True)
 
         # LLAMADAS AL DOCTOR - BZR
-        with st.expander("☎️ Llamadas al Doctor - BZR"):
+        st.markdown('<div class="provider-title">☎️ <strong>Llamadas al Doctor BZR</strong></div>', unsafe_allow_html=True)
+        with st.expander("Detalles"):
             df_bzr = df_tabla[['Mes', 'BZR_Cant', 'BZR_Precio']].copy()
             df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
             df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_bzr, hide_index=True, width=400)
+            st.dataframe(df_bzr, hide_index=True, use_container_width=True)
 
         # LLAMADAS AL DOCTOR - GRAL
-        with st.expander("☎️ Llamadas al Doctor - GRAL"):
+        st.markdown('<div class="provider-title">☎️ <strong>Llamadas al Doctor GRAL</strong></div>', unsafe_allow_html=True)
+        with st.expander("Detalles"):
             df_gral = df_tabla[['Mes', 'GRAL_Cant', 'GRAL_Precio']].copy()
             df_gral.columns = ['Mes', 'Cantidad', 'Precio']
             df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_gral, hide_index=True, width=400)
+            st.dataframe(df_gral, hide_index=True, use_container_width=True)
 
         # IMPRENTA
-        with st.expander("🖨️ Imprenta"):
+        st.markdown('<div class="provider-title">🖨️ <strong>Imprenta</strong></div>', unsafe_allow_html=True)
+        with st.expander("Detalles"):
             df_imprenta = df_tabla[['Mes', 'Imprenta_Cant', 'Imprenta_Precio']].copy()
             df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
             df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
-            st.dataframe(df_imprenta, hide_index=True, width=400)
+            st.dataframe(df_imprenta, hide_index=True, use_container_width=True)
         
         st.markdown("---")
         last_update = st.session_state.last_update_time
