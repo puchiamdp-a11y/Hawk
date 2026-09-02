@@ -200,7 +200,11 @@ st.markdown("""
     [data-testid="stSidebarContent"] {
         width: 120px !important;
     }
-    
+
+    .stButton {
+        width: 100% !important;
+    }
+
    .stButton > button {
         width: 100%;
         height: auto !important;
