@@ -446,15 +446,18 @@ def obtener_fila_mes(df, mes_nombre):
 mayo = obtener_fila_mes(df_resumen, "Mayo")
 junio = obtener_fila_mes(df_resumen, "Junio")
 
-def obtener_ultima_fila_datos(df, col_indice=1):
-    """Encuentra la última fila con datos en la columna especificada (Mes - columna B, índice 1)"""
+def obtener_ultima_fila_con_datos(df, col_indice=4):
+    """Encuentra la última fila con valor > 0 en la columna especificada (Costo Total - columna E, índice 4)"""
     for idx in range(len(df) - 1, -1, -1):
-        valor = df.iloc[idx, col_indice]
-        if pd.notna(valor) and str(valor).strip() != "" and str(valor).strip().lower() != "mes":
-            return df.iloc[idx]
+        try:
+            valor = pd.to_numeric(df.iloc[idx, col_indice], errors='coerce')
+            if pd.notna(valor) and valor > 0:
+                return df.iloc[idx]
+        except:
+            continue
     return None
 
-ultima_fila_resumen = obtener_ultima_fila_datos(df_resumen)
+ultima_fila_resumen = obtener_ultima_fila_con_datos(df_resumen)
 
 # ============================================
 # PROCESAR DATOS COMERCIOS
@@ -654,86 +657,103 @@ if pantalla_actual == "Resumen Ejecutivo":
     
     # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
     if ultima_fila_resumen is not None:
-        st.write("**Resumen de Ventas**")
-
-        # Estructura de la hoja Resumen:
-        # B=Mes, C-E=TOTAL(Cant,Premio,Costo), F-H=GARANTIAS(Cant,Premio,Costo), I-K=ASISTENCIAS(Cant,Premio,Costo)
-        # Índices (0-based): 1=Mes, 2-4=TOTAL, 5-7=GARANTIAS, 8-10=ASISTENCIAS
         try:
-            # TOTAL: índices 2, 3 (Cantidad, Premio - sin Costo)
-            total_cant = int(ultima_fila_resumen.iloc[2]) if pd.notna(ultima_fila_resumen.iloc[2]) else 0
-            total_premio = float(ultima_fila_resumen.iloc[3]) if pd.notna(ultima_fila_resumen.iloc[3]) else 0
+            # Estructura de la hoja Resumen:
+            # B=Mes, C-E=TOTAL(Cant,Premio,Costo), F-H=GARANTIAS(Cant,Premio,Costo), I-K=ASISTENCIAS(Cant,Premio,Costo)
+            # Índices (0-based): 1=Mes, 2-4=TOTAL, 5-7=GARANTIAS, 8-10=ASISTENCIAS
 
-            # GARANTÍAS: índices 5, 6 (Cantidad, Premio - sin Costo)
-            garantias_cant = int(ultima_fila_resumen.iloc[5]) if pd.notna(ultima_fila_resumen.iloc[5]) else 0
-            garantias_premio = float(ultima_fila_resumen.iloc[6]) if pd.notna(ultima_fila_resumen.iloc[6]) else 0
+            mes_resumen = str(ultima_fila_resumen.iloc[1]).strip() if pd.notna(ultima_fila_resumen.iloc[1]) else "Mes"
 
-            # ASISTENCIAS: índices 8, 9 (Cantidad, Premio - sin Costo)
-            asistencias_cant = int(ultima_fila_resumen.iloc[8]) if pd.notna(ultima_fila_resumen.iloc[8]) else 0
-            asistencias_premio = float(ultima_fila_resumen.iloc[9]) if pd.notna(ultima_fila_resumen.iloc[9]) else 0
+            # TOTAL: índices 2, 3 (Cantidad, Premio)
+            total_cant = int(pd.to_numeric(ultima_fila_resumen.iloc[2], errors='coerce') or 0)
+            total_premio = float(pd.to_numeric(ultima_fila_resumen.iloc[3], errors='coerce') or 0)
 
-            # TARJETAS DE RESUMEN (sin Costo)
+            # GARANTÍAS: índices 5, 6 (Cantidad, Premio)
+            garantias_cant = int(pd.to_numeric(ultima_fila_resumen.iloc[5], errors='coerce') or 0)
+            garantias_premio = float(pd.to_numeric(ultima_fila_resumen.iloc[6], errors='coerce') or 0)
+
+            # ASISTENCIAS: índices 8, 9 (Cantidad, Premio)
+            asistencias_cant = int(pd.to_numeric(ultima_fila_resumen.iloc[8], errors='coerce') or 0)
+            asistencias_premio = float(pd.to_numeric(ultima_fila_resumen.iloc[9], errors='coerce') or 0)
+
+            # TÍTULO CON MES
             st.markdown(f"""
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-title">Total</div>
-                    <div class="metric-value">{total_cant:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Total</div>
-                    <div class="metric-value">${total_premio:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">{garantias_cant:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">${garantias_premio:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">{asistencias_cant:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">${asistencias_premio:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
+            <div class="section-card">
+                <div class="section-title">📊 Resumen de Ventas del mes de {mes_resumen}</div>
             </div>
             """, unsafe_allow_html=True)
 
-            # TABLA COMPLETA CON COLORES POR SECCIÓN
-            st.write("**Detalles Completos**")
+            # TARJETAS EN 3 COLUMNAS
+            col1, col2, col3 = st.columns(3)
 
-            # Crear dataframe para mostrar todas las columnas con colores
-            df_display = df_resumen.copy()
+            # GARANTÍAS
+            with col1:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #00AA00 !important;">🛡️ GARANTÍAS</h3>
+                """, unsafe_allow_html=True)
 
-            # Función para colorear filas según la sección
-            def colorear_tabla(row):
-                colors = []
-                for i, col in enumerate(df_display.columns):
-                    if i < 1:  # Mes
-                        colors.append('background-color: #f0f0f0')
-                    elif i < 5:  # TOTAL (C-E)
-                        colors.append('background-color: #e8e8f5')
-                    elif i < 8:  # GARANTÍAS (F-H)
-                        colors.append('background-color: #e8f5e8')
-                    else:  # ASISTENCIAS (I-K)
-                        colors.append('background-color: #f5e8e8')
-                return colors
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #00AA00;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{garantias_cant:,}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            # Mostrar tabla con última fila destacada
-            st.dataframe(
-                df_display.style.apply(colorear_tabla, axis=1),
-                use_container_width=True,
-                height=400
-            )
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #00AA00; margin-top: 10px;">
+                    <div class="info-label">Premio</div>
+                    <div class="info-value">${garantias_premio:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            # ASISTENCIAS
+            with col2:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #FF6600 !important;">📞 ASISTENCIAS</h3>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #FF6600;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{asistencias_cant:,}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #FF6600; margin-top: 10px;">
+                    <div class="info-label">Premio</div>
+                    <div class="info-value">${asistencias_premio:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            # TOTAL
+            with col3:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #1E3A8A !important;">📈 TOTAL</h3>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #1E3A8A;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{total_cant:,}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
+                    <div class="info-label">Premio</div>
+                    <div class="info-value">${total_premio:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
 
         except (ValueError, IndexError) as e:
             st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
