@@ -446,6 +446,16 @@ def obtener_fila_mes(df, mes_nombre):
 mayo = obtener_fila_mes(df_resumen, "Mayo")
 junio = obtener_fila_mes(df_resumen, "Junio")
 
+def obtener_ultima_fila_datos(df, col_indice=3):
+    """Encuentra la última fila con datos en la columna especificada"""
+    for idx in range(len(df) - 1, -1, -1):
+        valor = df.iloc[idx, col_indice]
+        if pd.notna(valor) and str(valor).strip() != "":
+            return df.iloc[idx]
+    return None
+
+ultima_fila_resumen = obtener_ultima_fila_datos(df_resumen)
+
 # ============================================
 # PROCESAR DATOS COMERCIOS
 # ============================================
@@ -642,6 +652,77 @@ if pantalla_actual == "Resumen Ejecutivo":
             </div>
             """, unsafe_allow_html=True)
     
+    # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
+    if ultima_fila_resumen is not None:
+        st.write("**Resumen de Ventas**")
+
+        # Estructura esperada: Garantías (Q, P, C), Asistencias (Q, P, C), Total (Q, P, C)
+        # Suponiendo columnas: D=Mes, E-G=Garantías, H-J=Asistencias, K-M=Total
+        try:
+            garantias_cant = int(ultima_fila_resumen.iloc[4]) if pd.notna(ultima_fila_resumen.iloc[4]) else 0
+            garantias_premio = float(ultima_fila_resumen.iloc[5]) if pd.notna(ultima_fila_resumen.iloc[5]) else 0
+            garantias_costo = float(ultima_fila_resumen.iloc[6]) if pd.notna(ultima_fila_resumen.iloc[6]) else 0
+
+            asistencias_cant = int(ultima_fila_resumen.iloc[7]) if pd.notna(ultima_fila_resumen.iloc[7]) else 0
+            asistencias_premio = float(ultima_fila_resumen.iloc[8]) if pd.notna(ultima_fila_resumen.iloc[8]) else 0
+            asistencias_costo = float(ultima_fila_resumen.iloc[9]) if pd.notna(ultima_fila_resumen.iloc[9]) else 0
+
+            total_cant = int(ultima_fila_resumen.iloc[10]) if pd.notna(ultima_fila_resumen.iloc[10]) else 0
+            total_premio = float(ultima_fila_resumen.iloc[11]) if pd.notna(ultima_fila_resumen.iloc[11]) else 0
+            total_costo = float(ultima_fila_resumen.iloc[12]) if pd.notna(ultima_fila_resumen.iloc[12]) else 0
+
+            st.markdown(f"""
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">{garantias_cant:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">${garantias_premio:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">${garantias_costo:,.0f}</div>
+                    <div class="metric-subtitle">Costo</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">{asistencias_cant:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">${asistencias_premio:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">${asistencias_costo:,.0f}</div>
+                    <div class="metric-subtitle">Costo</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Total</div>
+                    <div class="metric-value">{total_cant:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Total</div>
+                    <div class="metric-value">${total_premio:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Total</div>
+                    <div class="metric-value">${total_costo:,.0f}</div>
+                    <div class="metric-subtitle">Costo</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        except (ValueError, IndexError) as e:
+            st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
+
     st.markdown("---")
     last_update = st.session_state.last_update_time
     formatted_time = last_update.strftime("%H:%M:%S")
