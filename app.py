@@ -258,6 +258,11 @@ st.markdown("""
         background: none !important;
     }
 
+    .section-divider {
+        border-top: 2px dotted #2563EB;
+        margin: 20px 0 15px 0;
+    }
+
     .alert-container {
         display: flex;
         flex-wrap: wrap;
@@ -650,6 +655,9 @@ if pantalla_actual == "Resumen Ejecutivo":
         """, unsafe_allow_html=True)
     
    # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
+    st.markdown("""
+    <div class="section-divider"></div>
+    """, unsafe_allow_html=True)
     st.write("**Estado de Emisión**")
     
     st.markdown(f"""
@@ -674,6 +682,9 @@ if pantalla_actual == "Resumen Ejecutivo":
     """, unsafe_allow_html=True)
     
     # BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
+    st.markdown("""
+    <div class="section-divider"></div>
+    """, unsafe_allow_html=True)
     st.write("**Ventas Pendientes**")
 
     # Construir todas las tarjetas en un contenedor flex
@@ -683,18 +694,8 @@ if pantalla_actual == "Resumen Ejecutivo":
             meses_str = ", ".join(datos_comercio['meses_pendientes'])
             certs = int(datos_comercio['certificados']) if pd.notna(datos_comercio['certificados']) else 0
             premio = datos_comercio['premio'] if pd.notna(datos_comercio['premio']) else 0
-
-            tarjetas_html += f"""
-            <div class="alert-card-inline">
-                <div class="alert-title-inline">{comercio}</div>
-                <div class="alert-content-inline">
-                    <strong>Meses:</strong> {meses_str}<br>
-                    <strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}
-                </div>
-            </div>
-            """
+            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}</div></div>'
     tarjetas_html += '</div>'
-
     st.markdown(tarjetas_html, unsafe_allow_html=True)
     
     # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
@@ -718,10 +719,11 @@ if pantalla_actual == "Resumen Ejecutivo":
             asistencias_cant = int(pd.to_numeric(ultima_fila_resumen.iloc[8], errors='coerce') or 0)
             asistencias_premio = float(pd.to_numeric(ultima_fila_resumen.iloc[9], errors='coerce') or 0)
 
-            # TÍTULO CON MES
-            st.markdown(f"""
-            <h2 class="section-title-simple">📊 Resumen de Ventas del mes de {mes_resumen}</h2>
+            # TÍTULO CON MES - CON LÍNEA DIVISORIA
+            st.markdown("""
+            <div class="section-divider"></div>
             """, unsafe_allow_html=True)
+            st.write(f"**📊 Resumen de Ventas del mes de {mes_resumen}**")
 
             # TARJETAS EN 3 COLUMNAS
             col1, col2, col3 = st.columns(3)
