@@ -239,14 +239,51 @@ st.markdown("""
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 15px;
-        border-left: 5px solid #2563EB;
+        border-left: 3px solid #2563EB;
     }
-    
+
     .section-title {
         font-size: 18px;
         font-weight: bold;
         color: white !important;
         margin: 0 !important;
+    }
+
+    .section-title-simple {
+        font-size: 18px;
+        font-weight: bold;
+        color: #1E3A8A !important;
+        margin: 15px 0 !important;
+        padding: 0 !important;
+        background: none !important;
+    }
+
+    .alert-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 12px 0;
+    }
+
+    .alert-card-inline {
+        background-color: #5B7FC8;
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        flex: 0 1 auto;
+        min-width: fit-content;
+        width: auto;
+    }
+
+    .alert-title-inline {
+        font-size: 15px;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .alert-content-inline {
+        font-size: 12px;
+        line-height: 1.5;
     }
     
     .provider-header {
@@ -638,22 +675,27 @@ if pantalla_actual == "Resumen Ejecutivo":
     
     # BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
     st.write("**Ventas Pendientes**")
-    
+
+    # Construir todas las tarjetas en un contenedor flex
+    tarjetas_html = '<div class="alert-container">'
     for comercio, datos_comercio in comercios_pendientes.items():
         if datos_comercio['meses_pendientes']:
             meses_str = ", ".join(datos_comercio['meses_pendientes'])
             certs = int(datos_comercio['certificados']) if pd.notna(datos_comercio['certificados']) else 0
             premio = datos_comercio['premio'] if pd.notna(datos_comercio['premio']) else 0
-            
-            st.markdown(f"""
-            <div class="alert-card">
-                <div class="alert-title">{comercio}</div>
-                <div class="alert-content">
+
+            tarjetas_html += f"""
+            <div class="alert-card-inline">
+                <div class="alert-title-inline">{comercio}</div>
+                <div class="alert-content-inline">
                     <strong>Meses:</strong> {meses_str}<br>
                     <strong>Certs:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.0f}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+    tarjetas_html += '</div>'
+
+    st.markdown(tarjetas_html, unsafe_allow_html=True)
     
     # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
     if ultima_fila_resumen is not None:
@@ -678,9 +720,7 @@ if pantalla_actual == "Resumen Ejecutivo":
 
             # TÍTULO CON MES
             st.markdown(f"""
-            <div class="section-card">
-                <div class="section-title">📊 Resumen de Ventas del mes de {mes_resumen}</div>
-            </div>
+            <h2 class="section-title-simple">📊 Resumen de Ventas del mes de {mes_resumen}</h2>
             """, unsafe_allow_html=True)
 
             # TARJETAS EN 3 COLUMNAS
