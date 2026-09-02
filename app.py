@@ -919,28 +919,103 @@ elif pantalla_actual == "Post Emisión":
         # TABLA HISTÓRICA
         st.write("### 📊 Histórico de Datos")
 
-        # Construir tabla para visualización
+        # Construir tabla para visualización con estilos personalizados
         tabla_datos = []
         for mes in [m for m in ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"] if m in post_emision_data]:
             datos_mes = post_emision_data[mes]
             tabla_datos.append({
                 'Mes': mes,
-                'GESA - Cant': int(datos_mes['GESA']['cant']),
-                'GESA - Premio': f"${datos_mes['GESA']['premio']:,.0f}",
-                'GESA - IVA': f"${datos_mes['GESA']['iva']:,.0f}",
-                'GESA - Sellos': f"${datos_mes['GESA']['sellos']:,.0f}",
-                'BLISTER - Cant': int(datos_mes['BLISTER']['cant']),
-                'BLISTER - Premio': f"${datos_mes['BLISTER']['premio']:,.0f}",
-                'BLISTER - IVA': f"${datos_mes['BLISTER']['iva']:,.0f}",
-                'BLISTER - Sellos': f"${datos_mes['BLISTER']['sellos']:,.0f}",
-                'TOTALES - Cant': int(datos_mes['TOTALES']['cant']),
-                'TOTALES - Total': f"${datos_mes['TOTALES']['total']:,.0f}",
-                'TOTALES - Ajuste': f"${datos_mes['TOTALES']['ajuste']:,.0f}",
+                'Cant': int(datos_mes['GESA']['cant']),
+                'Premio': f"${datos_mes['GESA']['premio']:,.0f}",
+                'IVA': f"${datos_mes['GESA']['iva']:,.0f}",
+                'Sellos': f"${datos_mes['GESA']['sellos']:,.0f}",
+                'Cant ': int(datos_mes['BLISTER']['cant']),
+                'Premio ': f"${datos_mes['BLISTER']['premio']:,.0f}",
+                'IVA ': f"${datos_mes['BLISTER']['iva']:,.0f}",
+                'Sellos ': f"${datos_mes['BLISTER']['sellos']:,.0f}",
+                'Cant  ': int(datos_mes['TOTALES']['cant']),
+                'Total': f"${datos_mes['TOTALES']['total']:,.0f}",
+                'Ajuste': f"${datos_mes['TOTALES']['ajuste']:,.0f}",
             })
 
         if tabla_datos:
             df_historico = pd.DataFrame(tabla_datos)
-            st.dataframe(df_historico, use_container_width=True, hide_index=True)
+
+            # Crear HTML personalizado con estilos de color
+            html_tabla = """
+            <style>
+                .tabla-post-emision { width: 100%; border-collapse: collapse; font-size: 13px; }
+                .tabla-post-emision th { padding: 12px; text-align: center; font-weight: 600; border-bottom: 2px solid #E5E7EB; }
+                .tabla-post-emision td { padding: 10px; text-align: right; border-bottom: 1px solid #E5E7EB; }
+                .tabla-post-emision td:first-child, .tabla-post-emision th:first-child { text-align: left; }
+
+                /* GESA - Rojo desaturado */
+                .gesa-header { background-color: #FFE5E5; color: #8B4444; }
+                .gesa-cell { background-color: #FFF5F5; }
+
+                /* BLISTER - Azul desaturado */
+                .blister-header { background-color: #E5F0FF; color: #445580; }
+                .blister-cell { background-color: #F5F8FF; }
+
+                /* TOTALES - Gris sutil */
+                .totales-header { background-color: #F0F0F0; color: #444444; }
+                .totales-cell { background-color: #F9F9F9; }
+
+                /* Mes */
+                .mes-header { background-color: #FFFFFF; color: #1E3A8A; font-weight: bold; }
+                .mes-cell { background-color: #FFFFFF; color: #1E3A8A; font-weight: 500; }
+            </style>
+
+            <table class="tabla-post-emision">
+                <thead>
+                    <tr>
+                        <th class="mes-header">Mes</th>
+                        <th colspan="4" class="gesa-header">GESA</th>
+                        <th colspan="4" class="blister-header">BLISTER</th>
+                        <th colspan="3" class="totales-header">TOTALES</th>
+                    </tr>
+                    <tr>
+                        <th class="mes-header"></th>
+                        <th class="gesa-header">Cant</th>
+                        <th class="gesa-header">Premio</th>
+                        <th class="gesa-header">IVA</th>
+                        <th class="gesa-header">Sellos</th>
+                        <th class="blister-header">Cant</th>
+                        <th class="blister-header">Premio</th>
+                        <th class="blister-header">IVA</th>
+                        <th class="blister-header">Sellos</th>
+                        <th class="totales-header">Cant</th>
+                        <th class="totales-header">Total</th>
+                        <th class="totales-header">Ajuste</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+
+            for _, row in df_historico.iterrows():
+                html_tabla += f"""
+                    <tr>
+                        <td class="mes-cell">{row['Mes']}</td>
+                        <td class="gesa-cell">{row['Cant']:,}</td>
+                        <td class="gesa-cell">{row['Premio']}</td>
+                        <td class="gesa-cell">{row['IVA']}</td>
+                        <td class="gesa-cell">{row['Sellos']}</td>
+                        <td class="blister-cell">{row['Cant ']:,}</td>
+                        <td class="blister-cell">{row['Premio ']}</td>
+                        <td class="blister-cell">{row['IVA ']}</td>
+                        <td class="blister-cell">{row['Sellos ']}</td>
+                        <td class="totales-cell">{row['Cant  ']:,}</td>
+                        <td class="totales-cell">{row['Total']}</td>
+                        <td class="totales-cell">{row['Ajuste']}</td>
+                    </tr>
+                """
+
+            html_tabla += """
+                </tbody>
+            </table>
+            """
+
+            st.markdown(html_tabla, unsafe_allow_html=True)
         else:
             st.info("📭 No hay datos disponibles para mostrar")
 
