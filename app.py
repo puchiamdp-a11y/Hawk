@@ -446,8 +446,8 @@ def obtener_fila_mes(df, mes_nombre):
 mayo = obtener_fila_mes(df_resumen, "Mayo")
 junio = obtener_fila_mes(df_resumen, "Junio")
 
-def obtener_ultima_fila_datos(df, col_indice=0):
-    """Encuentra la última fila con datos en la columna especificada (Mes)"""
+def obtener_ultima_fila_datos(df, col_indice=1):
+    """Encuentra la última fila con datos en la columna especificada (Mes - columna B, índice 1)"""
     for idx in range(len(df) - 1, -1, -1):
         valor = df.iloc[idx, col_indice]
         if pd.notna(valor) and str(valor).strip() != "" and str(valor).strip().lower() != "mes":
@@ -657,56 +657,24 @@ if pantalla_actual == "Resumen Ejecutivo":
         st.write("**Resumen de Ventas**")
 
         # Estructura de la hoja Resumen:
-        # A=Mes, B-D=TOTAL(Cant,Premio,Costo), E-G=GARANTIAS(Cant,Premio,Costo), H-J=ASISTENCIAS(Cant,Premio,Costo)
-        # Índices (0-based): 0=Mes, 1-3=TOTAL, 4-6=GARANTIAS, 7-9=ASISTENCIAS
+        # B=Mes, C-E=TOTAL(Cant,Premio,Costo), F-H=GARANTIAS(Cant,Premio,Costo), I-K=ASISTENCIAS(Cant,Premio,Costo)
+        # Índices (0-based): 1=Mes, 2-4=TOTAL, 5-7=GARANTIAS, 8-10=ASISTENCIAS
         try:
-            # GARANTÍAS: índices 4, 5, 6
-            garantias_cant = int(ultima_fila_resumen.iloc[4]) if pd.notna(ultima_fila_resumen.iloc[4]) else 0
-            garantias_premio = float(ultima_fila_resumen.iloc[5]) if pd.notna(ultima_fila_resumen.iloc[5]) else 0
-            garantias_costo = float(ultima_fila_resumen.iloc[6]) if pd.notna(ultima_fila_resumen.iloc[6]) else 0
+            # TOTAL: índices 2, 3 (Cantidad, Premio - sin Costo)
+            total_cant = int(ultima_fila_resumen.iloc[2]) if pd.notna(ultima_fila_resumen.iloc[2]) else 0
+            total_premio = float(ultima_fila_resumen.iloc[3]) if pd.notna(ultima_fila_resumen.iloc[3]) else 0
 
-            # ASISTENCIAS: índices 7, 8, 9
-            asistencias_cant = int(ultima_fila_resumen.iloc[7]) if pd.notna(ultima_fila_resumen.iloc[7]) else 0
-            asistencias_premio = float(ultima_fila_resumen.iloc[8]) if pd.notna(ultima_fila_resumen.iloc[8]) else 0
-            asistencias_costo = float(ultima_fila_resumen.iloc[9]) if pd.notna(ultima_fila_resumen.iloc[9]) else 0
+            # GARANTÍAS: índices 5, 6 (Cantidad, Premio - sin Costo)
+            garantias_cant = int(ultima_fila_resumen.iloc[5]) if pd.notna(ultima_fila_resumen.iloc[5]) else 0
+            garantias_premio = float(ultima_fila_resumen.iloc[6]) if pd.notna(ultima_fila_resumen.iloc[6]) else 0
 
-            # TOTAL: índices 1, 2, 3
-            total_cant = int(ultima_fila_resumen.iloc[1]) if pd.notna(ultima_fila_resumen.iloc[1]) else 0
-            total_premio = float(ultima_fila_resumen.iloc[2]) if pd.notna(ultima_fila_resumen.iloc[2]) else 0
-            total_costo = float(ultima_fila_resumen.iloc[3]) if pd.notna(ultima_fila_resumen.iloc[3]) else 0
+            # ASISTENCIAS: índices 8, 9 (Cantidad, Premio - sin Costo)
+            asistencias_cant = int(ultima_fila_resumen.iloc[8]) if pd.notna(ultima_fila_resumen.iloc[8]) else 0
+            asistencias_premio = float(ultima_fila_resumen.iloc[9]) if pd.notna(ultima_fila_resumen.iloc[9]) else 0
 
+            # TARJETAS DE RESUMEN (sin Costo)
             st.markdown(f"""
             <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">{garantias_cant:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">${garantias_premio:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">${garantias_costo:,.0f}</div>
-                    <div class="metric-subtitle">Costo</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">{asistencias_cant:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">${asistencias_premio:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">${asistencias_costo:,.0f}</div>
-                    <div class="metric-subtitle">Costo</div>
-                </div>
                 <div class="metric-box">
                     <div class="metric-title">Total</div>
                     <div class="metric-value">{total_cant:,}</div>
@@ -718,12 +686,55 @@ if pantalla_actual == "Resumen Ejecutivo":
                     <div class="metric-subtitle">Premio</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-title">Total</div>
-                    <div class="metric-value">${total_costo:,.0f}</div>
-                    <div class="metric-subtitle">Costo</div>
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">{garantias_cant:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">${garantias_premio:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">{asistencias_cant:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">${asistencias_premio:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+            # TABLA COMPLETA CON COLORES POR SECCIÓN
+            st.write("**Detalles Completos**")
+
+            # Crear dataframe para mostrar todas las columnas con colores
+            df_display = df_resumen.copy()
+
+            # Función para colorear filas según la sección
+            def colorear_tabla(row):
+                colors = []
+                for i, col in enumerate(df_display.columns):
+                    if i < 1:  # Mes
+                        colors.append('background-color: #f0f0f0')
+                    elif i < 5:  # TOTAL (C-E)
+                        colors.append('background-color: #e8e8f5')
+                    elif i < 8:  # GARANTÍAS (F-H)
+                        colors.append('background-color: #e8f5e8')
+                    else:  # ASISTENCIAS (I-K)
+                        colors.append('background-color: #f5e8e8')
+                return colors
+
+            # Mostrar tabla con última fila destacada
+            st.dataframe(
+                df_display.style.apply(colorear_tabla, axis=1),
+                use_container_width=True,
+                height=400
+            )
+
         except (ValueError, IndexError) as e:
             st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
 
