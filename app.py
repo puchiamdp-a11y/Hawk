@@ -203,9 +203,10 @@ st.markdown("""
     
    .stButton > button {
         width: 100%;
-        height: 100px !important;
-        font-size: 60px !important;
-        padding: 0 !important;
+        height: 45px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        padding: 8px 12px !important;
         border-radius: 8px !important;
         background-color: #F3F4F6 !important;
         color: #1E3A8A !important;
@@ -300,20 +301,20 @@ with st.sidebar:
     
     if "pantalla_actual" not in st.session_state:
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
-    
-    if st.button("📊", key="btn_resumen", use_container_width=True):
+
+    if st.button("Resumen Ejecutivo", key="btn_resumen", use_container_width=True):
         st.session_state.pantalla_actual = "Resumen Ejecutivo"
-    
-    if st.button("👥", key="btn_vip", use_container_width=True):
+
+    if st.button("Fichas VIP", key="btn_vip", use_container_width=True):
         st.session_state.pantalla_actual = "Fichas VIP"
-    
-    if st.button("💰", key="btn_costos", use_container_width=True):
+
+    if st.button("Machete Costos", key="btn_costos", use_container_width=True):
         st.session_state.pantalla_actual = "Machete Costos"
-    
-    if st.button("📦", key="btn_prov", use_container_width=True):
+
+    if st.button("Proveedores", key="btn_prov", use_container_width=True):
         st.session_state.pantalla_actual = "Proveedores"
 
-    if st.button("📋", key="btn_post_emision", use_container_width=True):
+    if st.button("Post Emisión", key="btn_post_emision", use_container_width=True):
         st.session_state.pantalla_actual = "Post Emisión"
 
     st.write("")
