@@ -192,13 +192,13 @@ st.markdown("""
     
     /* SIDEBAR COMPACTO Y PROFESIONAL */
     [data-testid="stSidebar"] {
-        width: 120px !important;
+        width: 180px !important;
         background-color: #FFFFFF !important;
         border-right: 1px solid #E5E7EB;
     }
     
     [data-testid="stSidebarContent"] {
-        width: 120px !important;
+        width: 180px !important;
     }
 
     .stButton {
