@@ -444,12 +444,12 @@ if "Post Emision" in datos:
     # B: Meses, C: GESA Cant, D: GESA Premio, E: GESA IVA, F: GESA Sellos
     # G: BLISTER Cant, H: BLISTER Premio, I: BLISTER IVA, J: BLISTER Sellos
     # K: Total Cant, L: Total Premio, M: Ajustes
-    meses_post = ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"]
+    meses_validos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
     for idx, row in df_general.iterrows():
         mes = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
 
-        if mes in meses_post:
+        if mes in meses_validos:
             try:
                 post_emision_data[mes] = {
                     'GESA': {
@@ -477,7 +477,7 @@ if "Post Emision" in datos:
     ultimo_mes = None
     if post_emision_data:
         # Ordenar meses en orden cronológico
-        meses_con_datos = [m for m in meses_post if m in post_emision_data]
+        meses_con_datos = [m for m in meses_validos if m in post_emision_data]
         ultimo_mes = meses_con_datos[-1] if meses_con_datos else None
 
 # ============================================
