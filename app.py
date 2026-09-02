@@ -299,11 +299,14 @@ with st.sidebar:
     
     if st.button("📦", key="btn_prov", use_container_width=True):
         st.session_state.pantalla_actual = "Proveedores"
-    
+
+    if st.button("📋", key="btn_post_emision", use_container_width=True):
+        st.session_state.pantalla_actual = "Post Emisión"
+
     st.write("")
     st.markdown("---")
     st.write("")
-    
+
     if st.button("🔄", key="btn_refresh", use_container_width=True):
         st.cache_data.clear()
 
@@ -394,11 +397,56 @@ comercios_cols = {
 for comercio in comercios_pendientes.keys():
     for idx, row in df_pendiente.iterrows():
         mes = str(row.iloc[2]).strip()
-        
+
         if mes in meses_orden:
             cant_val = row.iloc[comercios_cols[comercio]['cant']]
             if pd.notna(cant_val) and cant_val != 0:
                 comercios_pendientes[comercio]['meses_pendientes'].append(mes)
+
+# ============================================
+# PROCESAR DATOS POST EMISIÓN
+# ============================================
+post_emision_data = {}
+if "General" in datos:
+    df_general = datos['General']
+
+    # Definir estructura de datos esperada
+    # Asumimos filas con estructura: [Mes, GESA_Cant, GESA_Premio, GESA_IVA, GESA_Sellos, BLISTER_Cant, BLISTER_Premio, BLISTER_IVA, BLISTER_Sellos, TOTALES_Cant, TOTALES_Total, TOTALES_Ajuste]
+    meses_post = ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"]
+
+    for idx, row in df_general.iterrows():
+        mes = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
+
+        if mes in meses_post:
+            try:
+                post_emision_data[mes] = {
+                    'GESA': {
+                        'cant': pd.to_numeric(row.iloc[1], errors='coerce') if pd.notna(row.iloc[1]) else 0,
+                        'premio': pd.to_numeric(row.iloc[2], errors='coerce') if pd.notna(row.iloc[2]) else 0,
+                        'iva': pd.to_numeric(row.iloc[3], errors='coerce') if pd.notna(row.iloc[3]) else 0,
+                        'sellos': pd.to_numeric(row.iloc[4], errors='coerce') if pd.notna(row.iloc[4]) else 0,
+                    },
+                    'BLISTER': {
+                        'cant': pd.to_numeric(row.iloc[5], errors='coerce') if pd.notna(row.iloc[5]) else 0,
+                        'premio': pd.to_numeric(row.iloc[6], errors='coerce') if pd.notna(row.iloc[6]) else 0,
+                        'iva': pd.to_numeric(row.iloc[7], errors='coerce') if pd.notna(row.iloc[7]) else 0,
+                        'sellos': pd.to_numeric(row.iloc[8], errors='coerce') if pd.notna(row.iloc[8]) else 0,
+                    },
+                    'TOTALES': {
+                        'cant': pd.to_numeric(row.iloc[9], errors='coerce') if pd.notna(row.iloc[9]) else 0,
+                        'total': pd.to_numeric(row.iloc[10], errors='coerce') if pd.notna(row.iloc[10]) else 0,
+                        'ajuste': pd.to_numeric(row.iloc[11], errors='coerce') if pd.notna(row.iloc[11]) else 0,
+                    }
+                }
+            except (IndexError, ValueError):
+                pass
+
+    # Obtener el último mes con datos
+    ultimo_mes = None
+    if post_emision_data:
+        # Ordenar meses en orden cronológico
+        meses_con_datos = [m for m in meses_post if m in post_emision_data]
+        ultimo_mes = meses_con_datos[-1] if meses_con_datos else None
 
 # ============================================
 # PANTALLA 1: RESUMEN EJECUTIVO
@@ -768,3 +816,127 @@ elif pantalla_actual == "Proveedores":
     
     else:
         st.error("❌ Pestaña 'FC Proveedores' no encontrada")
+
+# ============================================
+# PANTALLA 5: POST EMISIÓN
+# ============================================
+elif pantalla_actual == "Post Emisión":
+    st.title("Post Emisión")
+
+    if "General" in datos and post_emision_data:
+        # SECCIÓN SUPERIOR: ÚLTIMO MES CON DATOS
+        if ultimo_mes:
+            datos_ultimo = post_emision_data[ultimo_mes]
+
+            st.markdown(f"""
+            <div class="section-card">
+                <div class="section-title">📊 {ultimo_mes} 2026</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #FF00FF !important;">🏢 GESA</h3>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #FF00FF;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{int(datos_ultimo['GESA']['cant']):,}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #FF00FF; margin-top: 10px;">
+                    <div class="info-label">Premio</div>
+                    <div class="info-value">${datos_ultimo['GESA']['premio']:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with col2:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #0066FF !important;">🏢 BLISTER</h3>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #0066FF;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{int(datos_ultimo['BLISTER']['cant']):,}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #0066FF; margin-top: 10px;">
+                    <div class="info-label">Premio</div>
+                    <div class="info-value">${datos_ultimo['BLISTER']['premio']:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with col3:
+                st.markdown("""
+                <div class="info-card">
+                <h3 style="color: #1E3A8A !important;">📈 TOTALES</h3>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #1E3A8A;">
+                    <div class="info-label">Cantidad</div>
+                    <div class="info-value">{int(datos_ultimo['TOTALES']['cant']):,}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
+                    <div class="info-label">Total</div>
+                    <div class="info-value">${datos_ultimo['TOTALES']['total']:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
+                    <div class="info-label">Ajuste</div>
+                    <div class="info-value">${datos_ultimo['TOTALES']['ajuste']:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # TABLA HISTÓRICA
+        st.write("### 📊 Histórico de Datos")
+
+        # Construir tabla para visualización
+        tabla_datos = []
+        for mes in [m for m in ["Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"] if m in post_emision_data]:
+            datos_mes = post_emision_data[mes]
+            tabla_datos.append({
+                'Mes': mes,
+                'GESA - Cant': int(datos_mes['GESA']['cant']),
+                'GESA - Premio': f"${datos_mes['GESA']['premio']:,.0f}",
+                'BLISTER - Cant': int(datos_mes['BLISTER']['cant']),
+                'BLISTER - Premio': f"${datos_mes['BLISTER']['premio']:,.0f}",
+                'TOTALES - Cant': int(datos_mes['TOTALES']['cant']),
+                'TOTALES - Total': f"${datos_mes['TOTALES']['total']:,.0f}",
+                'TOTALES - Ajuste': f"${datos_mes['TOTALES']['ajuste']:,.0f}",
+            })
+
+        if tabla_datos:
+            df_historico = pd.DataFrame(tabla_datos)
+            st.dataframe(df_historico, use_container_width=True, hide_index=True)
+        else:
+            st.info("📭 No hay datos disponibles para mostrar")
+
+        st.markdown("---")
+        st.caption("✅ Datos de Post Emisión cargados en vivo desde Google Drive")
+
+    else:
+        st.error("❌ No se encontraron datos en la pestaña 'General' o no hay información disponible")
