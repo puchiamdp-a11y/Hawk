@@ -341,6 +341,14 @@ st.markdown("""
         background-color: #E8F1F7;
     }
 
+    .resumen-cant {
+        font-weight: bold;
+    }
+
+    .resumen-premio {
+        font-weight: bold;
+    }
+
     .provider-header {
         background-color: #E0E7FF;
         border-left: 4px solid #1E3A8A;
@@ -908,15 +916,15 @@ if pantalla_actual == "Resumen Ejecutivo":
 
                     tabla_html += '<tr>'
                     tabla_html += f'<td style="text-align: left; font-weight: bold;">{mes}</td>'
-                    tabla_html += f'<td class="resumen-row-garantias">{gtr_cant:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-garantias">${gtr_premio:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-garantias">${gtr_costo:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-asistencias">{ast_cant:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-asistencias">${ast_premio:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-asistencias">${ast_costo:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-total">{tot_cant:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-total">${tot_premio:,.0f}</td>'
-                    tabla_html += f'<td class="resumen-row-total">${tot_costo:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias resumen-cant">{gtr_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias resumen-premio">${gtr_premio:,.2f}</td>'
+                    tabla_html += f'<td class="resumen-row-garantias">${gtr_costo:,.2f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias resumen-cant">{ast_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias resumen-premio">${ast_premio:,.2f}</td>'
+                    tabla_html += f'<td class="resumen-row-asistencias">${ast_costo:,.2f}</td>'
+                    tabla_html += f'<td class="resumen-row-total resumen-cant">{tot_cant:,.0f}</td>'
+                    tabla_html += f'<td class="resumen-row-total resumen-premio">${tot_premio:,.2f}</td>'
+                    tabla_html += f'<td class="resumen-row-total">${tot_costo:,.2f}</td>'
                     tabla_html += '</tr>'
 
             tabla_html += '</table>'
