@@ -262,6 +262,27 @@ st.markdown("""
         color: #1E3A8A !important;
         margin: 0 !important;
     }
+
+    /* OPTIMIZAR ESPACIADO DE COLUMNAS EN TABLAS */
+    [data-testid="dataFrame"] {
+        width: 100% !important;
+    }
+
+    [data-testid="dataFrame"] td {
+        padding: 8px 4px !important;
+    }
+
+    [data-testid="dataFrame"] th {
+        padding: 8px 4px !important;
+    }
+
+    .stDataFrame {
+        width: 100% !important;
+    }
+
+    .stDataFrame > div {
+        width: 100% !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -802,6 +823,7 @@ elif pantalla_actual == "Proveedores":
 
         # CARDINAL
         with st.expander("🏥 Cardinal"):
+            st.markdown("### **Cardinal**")
             df_cardinal = df_tabla[['Mes', 'Cardinal_Cant', 'Cardinal_Precio']].copy()
             df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
             df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
@@ -810,6 +832,7 @@ elif pantalla_actual == "Proveedores":
 
         # ADDIUVA
         with st.expander("💊 Addiuva"):
+            st.markdown("### **Addiuva**")
             df_addiuva = df_tabla[['Mes', 'Addiuva_Cant', 'Addiuva_Precio']].copy()
             df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
             df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
@@ -818,6 +841,7 @@ elif pantalla_actual == "Proveedores":
 
         # LLAMADAS AL DOCTOR - BZR
         with st.expander("☎️ Llamadas al Doctor - BZR"):
+            st.markdown("### **Llamadas al Doctor - BZR**")
             df_bzr = df_tabla[['Mes', 'BZR_Cant', 'BZR_Precio']].copy()
             df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
             df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
@@ -826,6 +850,7 @@ elif pantalla_actual == "Proveedores":
 
         # LLAMADAS AL DOCTOR - GRAL
         with st.expander("☎️ Llamadas al Doctor - GRAL"):
+            st.markdown("### **Llamadas al Doctor - GRAL**")
             df_gral = df_tabla[['Mes', 'GRAL_Cant', 'GRAL_Precio']].copy()
             df_gral.columns = ['Mes', 'Cantidad', 'Precio']
             df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
@@ -834,6 +859,7 @@ elif pantalla_actual == "Proveedores":
 
         # IMPRENTA
         with st.expander("🖨️ Imprenta"):
+            st.markdown("### **Imprenta**")
             df_imprenta = df_tabla[['Mes', 'Imprenta_Cant', 'Imprenta_Precio']].copy()
             df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
             df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
