@@ -203,10 +203,10 @@ st.markdown("""
     
    .stButton > button {
         width: 100%;
-        height: 38px !important;
+        height: auto !important;
         font-size: 13px !important;
         font-weight: 600 !important;
-        padding: 6px 10px !important;
+        padding: 8px 12px !important;
         border-radius: 8px !important;
         background-color: #F3F4F6 !important;
         color: #1E3A8A !important;
@@ -214,7 +214,6 @@ st.markdown("""
         margin-bottom: 10px !important;
         transition: all 0.3s ease !important;
         box-shadow: none !important;
-        white-space: nowrap !important;
     }
     
     .stButton > button:hover {
