@@ -683,51 +683,7 @@ if "Post Emision" in datos:
 if pantalla_actual == "Resumen Ejecutivo":
     st.title("Hawk - Reportes Internos")
 
-# BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
-    st.markdown("""
-    <div class="section-divider"></div>
-    """, unsafe_allow_html=True)
-    st.write("**Estado de Emisión**")
-    
-    st.markdown(f"""
-    <div class="emission-grid">
-        <div class="emission-cell">
-            <div class="emission-label">📊 Total</div>
-            <div class="emission-value">{total_comercios}</div>
-        </div>
-        <div class="emission-cell">
-            <div class="emission-label">⚠️ Pendientes</div>
-            <div class="emission-value">{pendientes_emitir}</div>
-        </div>
-        <div class="emission-cell">
-            <div class="emission-label">✅ Emitidos</div>
-            <div class="emission-value">{ya_emitidos}</div>
-        </div>
-        <div class="emission-cell">
-            <div class="emission-label">📈 Cant Promedio</div>
-            <div class="emission-value">{int(promedio_ventas_pendientes) if pd.notna(promedio_ventas_pendientes) else 0}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # BLOQUE 3: VENTAS PENDIENTES DE INFORMAR
-    st.markdown("""
-    <div class="section-divider"></div>
-    """, unsafe_allow_html=True)
-    st.write("**Ventas Pendientes**")
-
-    # Construir todas las tarjetas en un contenedor flex
-    tarjetas_html = '<div class="alert-container">'
-    for comercio, datos_comercio in comercios_pendientes.items():
-        if datos_comercio['meses_pendientes']:
-            meses_str = ", ".join(datos_comercio['meses_pendientes'])
-            certs = int(pd.to_numeric(datos_comercio['certificados'], errors='coerce') or 0)
-            premio = float(pd.to_numeric(datos_comercio['premio'], errors='coerce') or 0)
-            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Cert:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.2f}</div></div>'
-    tarjetas_html += '</div>'
-    st.markdown(tarjetas_html, unsafe_allow_html=True)
-    
-    # BLOQUE 4: RESUMEN DE VENTAS DEL MES ANTERIOR
+    # BLOQUE 4: RESUMEN - MES ACTUAL (PRIMERO)
     if ultima_fila_resumen is not None:
         try:
             # Estructura de la hoja Resumen:
@@ -900,6 +856,50 @@ if pantalla_actual == "Resumen Ejecutivo":
 
         except (ValueError, IndexError) as e:
             st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
+
+    # BLOQUE 3: VENTAS SIN INFORMAR (SEGUNDO)
+    st.markdown("""
+    <div class="section-divider"></div>
+    """, unsafe_allow_html=True)
+    st.write("**Ventas sin informar**")
+
+    # Construir todas las tarjetas en un contenedor flex
+    tarjetas_html = '<div class="alert-container">'
+    for comercio, datos_comercio in comercios_pendientes.items():
+        if datos_comercio['meses_pendientes']:
+            meses_str = ", ".join(datos_comercio['meses_pendientes'])
+            certs = int(pd.to_numeric(datos_comercio['certificados'], errors='coerce') or 0)
+            premio = float(pd.to_numeric(datos_comercio['premio'], errors='coerce') or 0)
+            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Cert:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.2f}</div></div>'
+    tarjetas_html += '</div>'
+    st.markdown(tarjetas_html, unsafe_allow_html=True)
+
+    # BLOQUE 2: ESTADO DE EMISIÓN (TERCERO)
+    st.markdown("""
+    <div class="section-divider"></div>
+    """, unsafe_allow_html=True)
+    st.write("**Estado de Emisión**")
+
+    st.markdown(f"""
+    <div class="emission-grid">
+        <div class="emission-cell">
+            <div class="emission-label">📊 Total</div>
+            <div class="emission-value">{total_comercios}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">⚠️ Pendientes</div>
+            <div class="emission-value">{pendientes_emitir}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">✅ Emitidos</div>
+            <div class="emission-value">{ya_emitidos}</div>
+        </div>
+        <div class="emission-cell">
+            <div class="emission-label">📈 Cant Promedio</div>
+            <div class="emission-value">{int(promedio_ventas_pendientes) if pd.notna(promedio_ventas_pendientes) else 0}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
     last_update = st.session_state.last_update_time
