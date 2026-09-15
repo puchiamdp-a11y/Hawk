@@ -1064,7 +1064,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # ASISTENCIAS
                     with col1:
-                        st.write("**📞 ASISTENCIAS**")
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>📞 ASISTENCIAS</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1076,7 +1076,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # GARANTIAS SPM
                     with col2:
-                        st.write("**🛡️ GAR SPM**")
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GAR SPM</b></div>", unsafe_allow_html=True)
                         df_spm = df_table[['Mes', 'GAR_SPM_Cant', 'GAR_SPM_Premio']].copy()
                         df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
                         df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1088,7 +1088,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # GARANTIAS CPM
                     with col3:
-                        st.write("**🛡️ GAR CPM**")
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GAR CPM</b></div>", unsafe_allow_html=True)
                         df_cpm = df_table[['Mes', 'GAR_CPM_Cant', 'GAR_CPM_Premio']].copy()
                         df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
                         df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1100,7 +1100,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL (Solo Garantías: SPM + CPM)
                     with col4:
-                        st.write("**💰 TOTAL**")
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 TOTAL</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio']].copy()
                         df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
                         df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1112,7 +1112,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL GENERAL (ASS + SPM + CPM)
                     with col5:
-                        st.write("**🌟 GENERAL**")
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🌟 GENERAL</b></div>", unsafe_allow_html=True)
                         df_gen = df_table[['Mes', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
                         df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
                         df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
