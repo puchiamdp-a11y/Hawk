@@ -1100,7 +1100,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL (Solo Garantías: SPM + CPM)
                     with col4:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 TOTAL</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 TOTAL GTIAS</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio']].copy()
                         df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
                         df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1112,7 +1112,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL GENERAL (ASS + SPM + CPM)
                     with col5:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🌟 GENERAL</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🌟 TOTAL GRAL</b></div>", unsafe_allow_html=True)
                         df_gen = df_table[['Mes', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
                         df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
                         df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
