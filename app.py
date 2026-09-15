@@ -683,53 +683,7 @@ if "Post Emision" in datos:
 if pantalla_actual == "Resumen Ejecutivo":
     st.title("Hawk - Reportes Internos")
 
-    # BLOQUE 1: MÉTRICAS DEL MES ACTUAL (ÚLTIMA FILA)
-    if ultima_fila_resumen is not None:
-        try:
-            mes_actual = str(ultima_fila_resumen.iloc[1]).strip() if pd.notna(ultima_fila_resumen.iloc[1]) else "Mes Actual"
-
-            # TOTAL: índices 2, 3 (Cantidad, Premio)
-            total_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[2], errors='coerce') or 0)
-            total_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[3], errors='coerce') or 0)
-
-            # GARANTÍAS: índices 5, 6 (Cantidad, Premio)
-            garantias_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[5], errors='coerce') or 0)
-            garantias_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[6], errors='coerce') or 0)
-
-            # ASISTENCIAS: índices 8, 9 (Cantidad, Premio)
-            asistencias_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[8], errors='coerce') or 0)
-            asistencias_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[9], errors='coerce') or 0)
-
-            st.write(f"**{mes_actual} 2026 (Mes Actual)**")
-
-            st.markdown(f"""
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">{garantias_cant_actual:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Garantías</div>
-                    <div class="metric-value">${garantias_premio_actual:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">{asistencias_cant_actual:,}</div>
-                    <div class="metric-subtitle">Cantidad</div>
-                </div>
-                <div class="metric-box">
-                    <div class="metric-title">Asistencias</div>
-                    <div class="metric-value">${asistencias_premio_actual:,.0f}</div>
-                    <div class="metric-subtitle">Premio</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        except Exception as e:
-            st.error(f"Error al obtener datos del mes actual: {str(e)}")
-    
-   # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
+# BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
     st.markdown("""
     <div class="section-divider"></div>
     """, unsafe_allow_html=True)
@@ -795,10 +749,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             asistencias_premio = float(pd.to_numeric(ultima_fila_resumen.iloc[9], errors='coerce') or 0)
 
             # TÍTULO CON MES - CON LÍNEA DIVISORIA
-            st.markdown("""
-            <div class="section-divider"></div>
-            """, unsafe_allow_html=True)
-            st.write(f"**📊 Resumen de Ventas del mes de {mes_resumen}**")
+            st.write(f"**📊 Resumen - Mes Actual ({mes_resumen})**")
 
             # TARJETAS EN 3 COLUMNAS
             col1, col2, col3 = st.columns(3)
