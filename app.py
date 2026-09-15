@@ -1129,21 +1129,21 @@ elif pantalla_actual == "Fichas VIP":
                     col1, col2, col3 = st.columns(3)
 
                     with col1:
-                        st.write("**Asistencias**")
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Asistencias</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = pd.to_numeric(df_ass['ASS_Cant'], errors='coerce').fillna(0).astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_ass, use_container_width=True, hide_index=True)
 
                     with col2:
-                        st.write("**Garantías**")
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Garantías</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Cant'] = pd.to_numeric(df_gar['GAR_Cant'], errors='coerce').fillna(0).astype(int)
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col3:
-                        st.write("**Total**")
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Total</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOT_Cant', 'TOT_Premio']].copy()
                         df_tot['TOT_Cant'] = pd.to_numeric(df_tot['TOT_Cant'], errors='coerce').fillna(0).astype(int)
                         df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
