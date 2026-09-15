@@ -958,9 +958,17 @@ if pantalla_actual == "Resumen Ejecutivo":
 # ============================================
 # PANTALLA 2: FICHAS VIP CON TABS
 # ============================================
+# GUÍA DE ESTÉTICA PARA FICHAS
+# Al crear nuevas fichas, aplicar los siguientes colores desaturados:
+# - Encabezados de CATEGORÍAS (Asistencias, Garantías): Azul suave #9DBDD9
+#   st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Nombre Categoría</b></div>", unsafe_allow_html=True)
+# - Encabezados de TOTALES (Total, Total Gral, etc): Naranja suave #E0C9B0
+#   st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Nombre Total</b></div>", unsafe_allow_html=True)
+# - Separadores entre columnas: 3px solid borders (#1E3A8A para datos, #FF6B00 para totales)
+# ============================================
 elif pantalla_actual == "Fichas VIP":
     st.title("Fichas de Clientes VIP")
-    
+
     clientes_vip = {
         "SYNA": "FC SYNA",
         "BAZAR": "FC BAZAR",
@@ -1033,7 +1041,7 @@ elif pantalla_actual == "Fichas VIP":
                 df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
                 if cliente == "TOYOS":
-                    st.write("### 📊 Garantías - Ventas Mensuales")
+                    st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>📊 Garantías - Ventas Mensuales</b></div>", unsafe_allow_html=True)
 
                     df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3']].copy()
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
