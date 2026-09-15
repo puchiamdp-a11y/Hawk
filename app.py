@@ -977,10 +977,10 @@ elif pantalla_actual == "Fichas VIP":
                 df_cliente = datos[pestaña_fc]
                 st.write(f"## {cliente}")
                 
-                # INFORMACIÓN ADICIONAL (B15:E21)
+                # INFORMACIÓN ADICIONAL (B18:E25) - Movida 2 filas hacia abajo
                 st.write("### 📋 Información del Cliente")
-                
-                info_rows = df_cliente.iloc[14:21]
+
+                info_rows = df_cliente.iloc[17:24]
                 info_data = []
                 
                 for idx, row in info_rows.iterrows():
@@ -1027,9 +1027,9 @@ elif pantalla_actual == "Fichas VIP":
                     st.markdown("</div>", unsafe_allow_html=True)
                 
                 st.markdown("---")
-                
-                # Extraer datos mensuales
-                df_datos = df_cliente.iloc[3:10].copy()
+
+                # Extraer datos mensuales (movido 2 filas hacia abajo)
+                df_datos = df_cliente.iloc[5:12].copy()
                 df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
                 if cliente == "TOYOS":
