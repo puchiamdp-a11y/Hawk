@@ -1033,7 +1033,7 @@ elif pantalla_actual == "Fichas VIP":
                 df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
                 if cliente == "TOYOS":
-                    st.write("### 📊 Garantías - Ventas Mensuales")
+                    st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>📊 Garantías - Ventas Mensuales</b></div>", unsafe_allow_html=True)
 
                     df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3']].copy()
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
