@@ -1059,69 +1059,65 @@ elif pantalla_actual == "Fichas VIP":
                         if col != 'Mes':
                             df_table[col] = pd.to_numeric(df_table[col], errors='coerce').fillna(0)
 
-                    # Mostrar con estructura visual clara
-                    st.markdown("""
-                    <style>
-                        .bazar-header {
-                            background-color: #1E3A8A;
-                            color: white;
-                            padding: 10px;
-                            border-radius: 5px;
-                            margin-top: 15px;
-                            margin-bottom: 5px;
-                            font-weight: bold;
-                            font-size: 13px;
-                        }
-                        .bazar-section {
-                            border-left: 4px solid #1E3A8A;
-                            padding-left: 10px;
-                            margin-bottom: 15px;
-                        }
-                        .bazar-total {
-                            background-color: #FFD700;
-                            border: 2px solid #FF6B00;
-                            padding: 10px;
-                            border-radius: 5px;
-                            margin-top: 10px;
-                        }
-                    </style>
-                    """, unsafe_allow_html=True)
+                    # Mostrar HORIZONTAL en columnas con separadores
+                    col1, col2, col3, col4, col5 = st.columns(5)
 
-                    # Sección ASISTENCIAS
-                    st.markdown("<div class='bazar-header'>📞 ASISTENCIAS</div>", unsafe_allow_html=True)
-                    df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
-                    df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
-                    df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
-                    df_ass.columns = ['Mes', 'Cantidad', 'Premio']
-                    st.dataframe(df_ass, use_container_width=True, hide_index=True)
+                    # ASISTENCIAS
+                    with col1:
+                        st.write("**📞 ASISTENCIAS**")
+                        df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
+                        df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
+                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_ass.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_ass, use_container_width=True, hide_index=True)
 
-                    # Sección GARANTIAS SPM
-                    st.markdown("<div class='bazar-header'>🛡️ GARANTÍAS SPM</div>", unsafe_allow_html=True)
-                    df_spm = df_table[['Mes', 'GAR_SPM_Cant', 'GAR_SPM_Premio']].copy()
-                    df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
-                    df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
-                    df_spm.columns = ['Mes', 'Cantidad', 'Premio']
-                    st.dataframe(df_spm, use_container_width=True, hide_index=True)
+                    # Separador 1
+                    st.markdown("<div style='border-left: 3px solid #1E3A8A;'>&nbsp;</div>", unsafe_allow_html=True)
 
-                    # Sección GARANTIAS CPM
-                    st.markdown("<div class='bazar-header'>🛡️ GARANTÍAS CPM</div>", unsafe_allow_html=True)
-                    df_cpm = df_table[['Mes', 'GAR_CPM_Cant', 'GAR_CPM_Premio']].copy()
-                    df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
-                    df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
-                    df_cpm.columns = ['Mes', 'Cantidad', 'Premio']
-                    st.dataframe(df_cpm, use_container_width=True, hide_index=True)
+                    # GARANTIAS SPM
+                    with col2:
+                        st.write("**🛡️ GAR SPM**")
+                        df_spm = df_table[['Mes', 'GAR_SPM_Cant', 'GAR_SPM_Premio']].copy()
+                        df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
+                        df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_spm.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_spm, use_container_width=True, hide_index=True)
 
-                    # Sección TOTAL (Resaltada)
-                    st.markdown("<div class='bazar-header'>💰 TOTAL GENERAL (RESUMEN)</div>", unsafe_allow_html=True)
-                    df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
-                    df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
-                    df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
-                    df_tot['GENERAL_Cant'] = df_tot['GENERAL_Cant'].astype(int)
-                    df_tot['GENERAL_Premio'] = df_tot['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
-                    df_tot.columns = ['Mes', 'Total GE (Cant)', 'Total GE (Premio)', 'General (Cant)', 'General (Premio)']
-                    st.markdown("<div class='bazar-total'>", unsafe_allow_html=True)
-                    st.dataframe(df_tot, use_container_width=True, hide_index=True)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    # Separador 2
+                    st.markdown("<div style='border-left: 3px solid #1E3A8A;'>&nbsp;</div>", unsafe_allow_html=True)
+
+                    # GARANTIAS CPM
+                    with col3:
+                        st.write("**🛡️ GAR CPM**")
+                        df_cpm = df_table[['Mes', 'GAR_CPM_Cant', 'GAR_CPM_Premio']].copy()
+                        df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
+                        df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_cpm.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_cpm, use_container_width=True, hide_index=True)
+
+                    # Separador 3 (NARANJA para Totales)
+                    st.markdown("<div style='border-left: 3px solid #FF6B00;'>&nbsp;</div>", unsafe_allow_html=True)
+
+                    # TOTAL (Solo Garantías: SPM + CPM)
+                    with col4:
+                        st.write("**💰 TOTAL**")
+                        df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio']].copy()
+                        df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
+                        df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_tot.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_tot, use_container_width=True, hide_index=True)
+
+                    # Separador 4 (NARANJA para Totales)
+                    st.markdown("<div style='border-left: 3px solid #FF6B00;'>&nbsp;</div>", unsafe_allow_html=True)
+
+                    # TOTAL GENERAL (ASS + SPM + CPM)
+                    with col5:
+                        st.write("**🌟 GENERAL**")
+                        df_gen = df_table[['Mes', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
+                        df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
+                        df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_gen.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_gen, use_container_width=True, hide_index=True)
 
                 else:
                     st.write("### 📊 Ventas por Cobertura")
