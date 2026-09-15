@@ -682,35 +682,52 @@ if "Post Emision" in datos:
 # ============================================
 if pantalla_actual == "Resumen Ejecutivo":
     st.title("Hawk - Reportes Internos")
-    
-    # BLOQUE 1: MÉTRICAS DE JUNIO
-    st.write("**Junio 2026**")
-    
-    if junio is not None:
-        st.markdown(f"""
-        <div class="metrics-grid">
-            <div class="metric-box">
-                <div class="metric-title">Garantías</div>
-                <div class="metric-value">{int(junio.iloc[7]):,}</div>
-                <div class="metric-subtitle">Cantidad</div>
+
+    # BLOQUE 1: MÉTRICAS DEL MES ACTUAL (ÚLTIMA FILA)
+    if ultima_fila_resumen is not None:
+        try:
+            mes_actual = str(ultima_fila_resumen.iloc[1]).strip() if pd.notna(ultima_fila_resumen.iloc[1]) else "Mes Actual"
+
+            # TOTAL: índices 2, 3 (Cantidad, Premio)
+            total_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[2], errors='coerce') or 0)
+            total_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[3], errors='coerce') or 0)
+
+            # GARANTÍAS: índices 5, 6 (Cantidad, Premio)
+            garantias_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[5], errors='coerce') or 0)
+            garantias_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[6], errors='coerce') or 0)
+
+            # ASISTENCIAS: índices 8, 9 (Cantidad, Premio)
+            asistencias_cant_actual = int(pd.to_numeric(ultima_fila_resumen.iloc[8], errors='coerce') or 0)
+            asistencias_premio_actual = float(pd.to_numeric(ultima_fila_resumen.iloc[9], errors='coerce') or 0)
+
+            st.write(f"**{mes_actual} 2026 (Mes Actual)**")
+
+            st.markdown(f"""
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">{garantias_cant_actual:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Garantías</div>
+                    <div class="metric-value">${garantias_premio_actual:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">{asistencias_cant_actual:,}</div>
+                    <div class="metric-subtitle">Cantidad</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-title">Asistencias</div>
+                    <div class="metric-value">${asistencias_premio_actual:,.0f}</div>
+                    <div class="metric-subtitle">Premio</div>
+                </div>
             </div>
-            <div class="metric-box">
-                <div class="metric-title">Garantías</div>
-                <div class="metric-value">${junio.iloc[8]:,.0f}</div>
-                <div class="metric-subtitle">Premio</div>
-            </div>
-            <div class="metric-box">
-                <div class="metric-title">Asistencias</div>
-                <div class="metric-value">{int(junio.iloc[10]):,}</div>
-                <div class="metric-subtitle">Cantidad</div>
-            </div>
-            <div class="metric-box">
-                <div class="metric-title">Asistencias</div>
-                <div class="metric-value">${junio.iloc[11]:,.0f}</div>
-                <div class="metric-subtitle">Premio</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"Error al obtener datos del mes actual: {str(e)}")
     
    # BLOQUE 2: COMERCIOS FALTANTES (GRILLA 2x2)
     st.markdown("""
@@ -1017,62 +1034,46 @@ elif pantalla_actual == "Fichas VIP":
                 
                 if cliente == "TOYOS":
                     st.write("### 📊 Garantías - Ventas Mensuales")
-                    
+
                     df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3']].copy()
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
                     df_table = df_table[df_table['Mes'].notna()]
-                    
+
                     df_display = df_table.copy()
                     df_display['GAR_Cant'] = pd.to_numeric(df_display['GAR_Cant'], errors='coerce').fillna(0).astype(int)
                     df_display['GAR_Premio'] = df_display['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
-                    
+
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
-                    
-                    st.write("### 📈 Evolución de Ventas")
-                    df_graph = df_table.copy()
-                    df_graph['GAR_Cant'] = pd.to_numeric(df_graph['GAR_Cant'], errors='coerce')
-                    df_graph = df_graph[df_graph['Mes'].notna() & (df_graph['GAR_Cant'] > 0)]
-                    
-                    if not df_graph.empty:
-                        st.bar_chart(df_graph.set_index('Mes')['GAR_Cant'])
                 
                 else:
                     st.write("### 📊 Ventas por Cobertura")
-                    
+
                     df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5', 'Unnamed: 6', 'Unnamed: 7']].copy()
                     df_table.columns = ['Mes', 'ASS_Cant', 'ASS_Premio', 'GAR_Cant', 'GAR_Premio', 'TOT_Cant', 'TOT_Premio']
                     df_table = df_table[df_table['Mes'].notna()]
-                    
+
                     col1, col2, col3 = st.columns(3)
-                    
+
                     with col1:
                         st.write("**Asistencias**")
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = pd.to_numeric(df_ass['ASS_Cant'], errors='coerce').fillna(0).astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_ass, use_container_width=True, hide_index=True)
-                    
+
                     with col2:
                         st.write("**Garantías**")
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Cant'] = pd.to_numeric(df_gar['GAR_Cant'], errors='coerce').fillna(0).astype(int)
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
-                    
+
                     with col3:
                         st.write("**Total**")
                         df_tot = df_table[['Mes', 'TOT_Cant', 'TOT_Premio']].copy()
                         df_tot['TOT_Cant'] = pd.to_numeric(df_tot['TOT_Cant'], errors='coerce').fillna(0).astype(int)
                         df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_tot, use_container_width=True, hide_index=True)
-                    
-                    st.write("### 📈 Evolución Total de Ventas")
-                    df_graph = df_table.copy()
-                    df_graph['TOT_Cant'] = pd.to_numeric(df_graph['TOT_Cant'], errors='coerce')
-                    df_graph = df_graph[df_graph['Mes'].notna() & (df_graph['TOT_Cant'] > 0)]
-                    
-                    if not df_graph.empty:
-                        st.bar_chart(df_graph.set_index('Mes')['TOT_Cant'])
             
             else:
                 st.error(f"❌ Pestaña '{pestaña_fc}' no encontrada")
