@@ -945,12 +945,17 @@ elif pantalla_actual == "Fichas VIP":
                 df_cliente = datos[pestaña_fc]
                 st.write(f"## {cliente}")
                 
-                # INFORMACIÓN ADICIONAL (B18:E25) - Movida 2 filas hacia abajo
+                # INFORMACIÓN ADICIONAL - Rango varía según cliente
                 st.write("### 📋 Información del Cliente")
 
-                info_rows = df_cliente.iloc[17:24]
+                # Las Malvinas tiene información desde B13 (iloc 12), otros desde B18 (iloc 17)
+                if cliente == "LAS MALVINAS":
+                    info_rows = df_cliente.iloc[12:18]
+                else:
+                    info_rows = df_cliente.iloc[17:24]
+
                 info_data = []
-                
+
                 for idx, row in info_rows.iterrows():
                     etiqueta = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
                     valores = []
@@ -959,7 +964,7 @@ elif pantalla_actual == "Fichas VIP":
                             val = str(row.iloc[col_idx]).strip()
                             if val and val.lower() != "nan":
                                 valores.append(val)
-                    
+
                     if etiqueta and etiqueta.lower() not in ["nan", "", "none"]:
                         valor_completo = " ".join(valores).strip()
                         info_data.append({"Dato": etiqueta, "Valor": valor_completo})
@@ -1037,7 +1042,7 @@ elif pantalla_actual == "Fichas VIP":
                         df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_ass.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_ass, use_container_width=True, hide_index=True)
+                        st.dataframe(df_ass, use_container_width=False, hide_index=True)
 
                     # Separador 1
                     st.markdown("<div style='border-left: 3px solid #1E3A8A;'>&nbsp;</div>", unsafe_allow_html=True)
@@ -1049,7 +1054,7 @@ elif pantalla_actual == "Fichas VIP":
                         df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
                         df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_spm.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_spm, use_container_width=True, hide_index=True)
+                        st.dataframe(df_spm, use_container_width=False, hide_index=True)
 
                     # Separador 2
                     st.markdown("<div style='border-left: 3px solid #1E3A8A;'>&nbsp;</div>", unsafe_allow_html=True)
@@ -1061,7 +1066,7 @@ elif pantalla_actual == "Fichas VIP":
                         df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
                         df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_cpm.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_cpm, use_container_width=True, hide_index=True)
+                        st.dataframe(df_cpm, use_container_width=False, hide_index=True)
 
                     # Separador 3 (NARANJA para Totales)
                     st.markdown("<div style='border-left: 3px solid #FF6B00;'>&nbsp;</div>", unsafe_allow_html=True)
@@ -1073,7 +1078,7 @@ elif pantalla_actual == "Fichas VIP":
                         df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
                         df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_tot.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_tot, use_container_width=True, hide_index=True)
+                        st.dataframe(df_tot, use_container_width=False, hide_index=True)
 
                     # Separador 4 (NARANJA para Totales)
                     st.markdown("<div style='border-left: 3px solid #FF6B00;'>&nbsp;</div>", unsafe_allow_html=True)
@@ -1085,7 +1090,7 @@ elif pantalla_actual == "Fichas VIP":
                         df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
                         df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_gen.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_gen, use_container_width=True, hide_index=True)
+                        st.dataframe(df_gen, use_container_width=False, hide_index=True)
 
                     # TABLA DE COBERTURAS (Filas 26-33)
                     st.markdown("<br>", unsafe_allow_html=True)
@@ -1102,7 +1107,7 @@ elif pantalla_actual == "Fichas VIP":
                     df_cob['% Blister'] = df_cob['% Blister'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
 
                     # Renderizar tabla con HTML para resaltar valores en negrita
-                    tabla_html = '<table class="resumen-table" style="width: 100%; border-collapse: collapse;">'
+                    tabla_html = '<table class="resumen-table" style="width: auto; border-collapse: collapse;">'
                     tabla_html += '<tr style="background-color: #1E3A8A; color: white;"><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Total</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Sancor</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Blister</th><th style="padding: 10px; text-align: left; border: 2px solid #1E3A8A;">Cobertura</th></tr>'
 
                     for idx, row in df_cob.iterrows():
