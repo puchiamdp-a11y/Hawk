@@ -1087,6 +1087,43 @@ elif pantalla_actual == "Fichas VIP":
                         df_gen.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gen, use_container_width=True, hide_index=True)
 
+                    # TABLA DE COBERTURAS (Filas 26-33)
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<h3 style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'>📋 Coberturas y Costos</h3>", unsafe_allow_html=True)
+
+                    df_coberturas = df_cliente.iloc[25:33].copy()
+                    df_cob = df_coberturas[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']].copy()
+                    df_cob.columns = ['% Total', '% Sancor', '% Blister', 'Cobertura']
+                    df_cob = df_cob[df_cob['% Total'].notna()]
+
+                    # Convertir valores numéricos
+                    df_cob['% Total'] = df_cob['% Total'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
+                    df_cob['% Sancor'] = df_cob['% Sancor'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
+                    df_cob['% Blister'] = df_cob['% Blister'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
+
+                    # Renderizar tabla con HTML para resaltar valores en negrita
+                    tabla_html = '<table class="resumen-table" style="width: 100%;">'
+                    tabla_html += '<tr><th>% Total</th><th>% Sancor</th><th>% Blister</th><th>Cobertura</th></tr>'
+
+                    for idx, row in df_cob.iterrows():
+                        tabla_html += '<tr>'
+                        # % Total
+                        val_total = str(row['% Total']).strip()
+                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_total}</td>'
+                        # % Sancor
+                        val_sancor = str(row['% Sancor']).strip()
+                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_sancor}</td>'
+                        # % Blister
+                        val_blister = str(row['% Blister']).strip()
+                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_blister}</td>'
+                        # Cobertura
+                        cobertura = str(row['Cobertura']).strip()
+                        tabla_html += f'<td style="text-align: left;"><b>{cobertura}</b></td>'
+                        tabla_html += '</tr>'
+
+                    tabla_html += '</table>'
+                    st.markdown(tabla_html, unsafe_allow_html=True)
+
                 elif cliente == "LAS MALVINAS":
                     st.write("### 📊 Facturación Las Malvinas 2026")
 
