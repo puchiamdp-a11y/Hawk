@@ -931,6 +931,8 @@ elif pantalla_actual == "Fichas VIP":
         "SYNA": "FC SYNA",
         "BAZAR": "FC BAZAR",
         "TOYOS": "FC TOYOS",
+        "LAS MALVINAS": "FC Las malvinas",
+        "CASA REIG": "FC Casa Reig",
         "DRICCO": "FC DRICCO",
         "SENSEI": "FC SENSEI"
     }
@@ -1084,6 +1086,67 @@ elif pantalla_actual == "Fichas VIP":
                         df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
                         df_gen.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gen, use_container_width=True, hide_index=True)
+
+                elif cliente == "LAS MALVINAS":
+                    st.write("### 📊 Facturación Las Malvinas 2026")
+
+                    # Datos de Las Malvinas (filas 4-14 en Excel, iloc 3:13)
+                    df_datos_malvinas = df_cliente.iloc[3:13].copy()
+                    df_table = df_datos_malvinas[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']].copy()
+                    df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio', 'Restante_Deuda']
+                    df_table = df_table[df_table['Mes'].notna()]
+
+                    # Convertir a números
+                    df_table['GAR_Cant'] = pd.to_numeric(df_table['GAR_Cant'], errors='coerce').fillna(0).astype(int)
+                    df_table['GAR_Premio'] = pd.to_numeric(df_table['GAR_Premio'], errors='coerce').fillna(0)
+                    df_table['Restante_Deuda'] = pd.to_numeric(df_table['Restante_Deuda'], errors='coerce').fillna(0)
+
+                    # Mostrar en 2 columnas
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_gar.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_gar, use_container_width=True, hide_index=True)
+
+                    with col2:
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
+                        df_deuda = df_table[['Mes', 'Restante_Deuda']].copy()
+                        df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_deuda.columns = ['Mes', 'Premio']
+                        st.dataframe(df_deuda, use_container_width=True, hide_index=True)
+
+                elif cliente == "CASA REIG":
+                    st.write("### 📊 Facturación Casa Reig 2026")
+
+                    # Datos de Casa Reig (filas 4-14 en Excel, iloc 3:13)
+                    df_datos_reig = df_cliente.iloc[3:13].copy()
+                    df_table = df_datos_reig[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']].copy()
+                    df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio', 'Pagos']
+                    df_table = df_table[df_table['Mes'].notna()]
+
+                    # Convertir a números
+                    df_table['GAR_Cant'] = pd.to_numeric(df_table['GAR_Cant'], errors='coerce').fillna(0).astype(int)
+                    df_table['GAR_Premio'] = pd.to_numeric(df_table['GAR_Premio'], errors='coerce').fillna(0)
+
+                    # Mostrar en 2 columnas
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_gar.columns = ['Mes', 'Cant', 'Premio']
+                        st.dataframe(df_gar, use_container_width=True, hide_index=True)
+
+                    with col2:
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💳 PAGOS</b></div>", unsafe_allow_html=True)
+                        df_pagos = df_table[['Mes', 'Pagos']].copy()
+                        df_pagos['Pagos'] = df_pagos['Pagos'].apply(lambda x: str(x).strip() if pd.notna(x) else "-")
+                        df_pagos.columns = ['Mes', 'SI/NO']
+                        st.dataframe(df_pagos, use_container_width=True, hide_index=True)
 
                 else:
                     st.write("### 📊 Ventas por Cobertura")
