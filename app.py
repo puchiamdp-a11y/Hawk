@@ -1102,23 +1102,23 @@ elif pantalla_actual == "Fichas VIP":
                     df_cob['% Blister'] = df_cob['% Blister'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
 
                     # Renderizar tabla con HTML para resaltar valores en negrita
-                    tabla_html = '<table class="resumen-table" style="width: 100%;">'
-                    tabla_html += '<tr><th>% Total</th><th>% Sancor</th><th>% Blister</th><th>Cobertura</th></tr>'
+                    tabla_html = '<table class="resumen-table" style="width: 100%; border-collapse: collapse;">'
+                    tabla_html += '<tr style="background-color: #1E3A8A; color: white;"><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Total</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Sancor</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Blister</th><th style="padding: 10px; text-align: left; border: 2px solid #1E3A8A;">Cobertura</th></tr>'
 
                     for idx, row in df_cob.iterrows():
-                        tabla_html += '<tr>'
+                        tabla_html += '<tr style="border-bottom: 2px solid #1E3A8A;">'
                         # % Total
                         val_total = str(row['% Total']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_total}</td>'
+                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_total}</td>'
                         # % Sancor
                         val_sancor = str(row['% Sancor']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_sancor}</td>'
+                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_sancor}</td>'
                         # % Blister
                         val_blister = str(row['% Blister']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold;">{val_blister}</td>'
+                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_blister}</td>'
                         # Cobertura
                         cobertura = str(row['Cobertura']).strip()
-                        tabla_html += f'<td style="text-align: left;"><b>{cobertura}</b></td>'
+                        tabla_html += f'<td style="text-align: left; padding: 8px; border: 1px solid #ddd;"><b>{cobertura}</b></td>'
                         tabla_html += '</tr>'
 
                     tabla_html += '</table>'
@@ -1145,35 +1145,18 @@ elif pantalla_actual == "Fichas VIP":
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 8px; border-radius: 5px; margin-bottom: 8px;'><b style='font-size: 0.95em;'>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_gar, use_container_width=True, hide_index=True, height=120)
+                        st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col2:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 8px; border-radius: 5px; margin-bottom: 8px;'><b style='font-size: 0.95em;'>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
                         df_deuda = df_table[['Mes', 'Restante_Deuda']].copy()
                         df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
-                        df_deuda.columns = ['Mes', 'Premio']
-                        st.dataframe(df_deuda, use_container_width=True, hide_index=True, height=120)
-
-                    # Información relevante (desde B13 en Excel = iloc 12)
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("<h3 style='background-color: #1E3A8A; color: white; padding: 8px; border-radius: 5px; margin-bottom: 10px;'>📋 Información Relevante</h3>", unsafe_allow_html=True)
-
-                    df_info = df_cliente.iloc[12:18].copy()
-                    df_info_table = df_info[['Unnamed: 1', 'Unnamed: 2']].copy()
-                    df_info_table.columns = ['Campo', 'Valor']
-                    df_info_table = df_info_table[df_info_table['Campo'].notna()]
-
-                    info_html = '<table style="width: 100%; font-size: 0.9em;">'
-                    for idx, row in df_info_table.iterrows():
-                        campo = str(row['Campo']).strip()
-                        valor = str(row['Valor']).strip() if pd.notna(row['Valor']) else ""
-                        info_html += f'<tr><td style="font-weight: bold; padding: 6px 8px; background-color: #f0f0f0;">{campo}</td><td style="padding: 6px 8px;">{valor}</td></tr>'
-                    info_html += '</table>'
-                    st.markdown(info_html, unsafe_allow_html=True)
+                        df_deuda.columns = ['Mes', 'Deuda']
+                        st.dataframe(df_deuda, use_container_width=True, hide_index=True)
 
                 elif cliente == "CASA REIG":
                     st.write("### 📊 Facturación Casa Reig 2026")
