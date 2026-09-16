@@ -1127,8 +1127,8 @@ elif pantalla_actual == "Fichas VIP":
                 elif cliente == "LAS MALVINAS":
                     st.write("### 📊 Facturación Las Malvinas 2026")
 
-                    # Datos de Las Malvinas (filas 4-14 en Excel, iloc 3:13)
-                    df_datos_malvinas = df_cliente.iloc[3:13].copy()
+                    # Datos de Las Malvinas (B2:E11 en Excel = filas 2-11, iloc[3:11] para incluir headers en fila 4)
+                    df_datos_malvinas = df_cliente.iloc[3:11].copy()
                     df_table = df_datos_malvinas[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']].copy()
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio', 'Restante_Deuda']
                     df_table = df_table[df_table['Mes'].notna()]
@@ -1138,22 +1138,42 @@ elif pantalla_actual == "Fichas VIP":
                     df_table['GAR_Premio'] = pd.to_numeric(df_table['GAR_Premio'], errors='coerce').fillna(0)
                     df_table['Restante_Deuda'] = pd.to_numeric(df_table['Restante_Deuda'], errors='coerce').fillna(0)
 
+                    # Filtrar solo las filas donde GAR_Cant > 0
+                    df_table = df_table[df_table['GAR_Cant'] > 0]
+
                     # Mostrar en 2 columnas
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #9DBDD9; padding: 8px; border-radius: 5px; margin-bottom: 8px;'><b style='font-size: 0.95em;'>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
-                        st.dataframe(df_gar, use_container_width=True, hide_index=True)
+                        st.dataframe(df_gar, use_container_width=True, hide_index=True, height=120)
 
                     with col2:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #E0C9B0; padding: 8px; border-radius: 5px; margin-bottom: 8px;'><b style='font-size: 0.95em;'>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
                         df_deuda = df_table[['Mes', 'Restante_Deuda']].copy()
                         df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_deuda.columns = ['Mes', 'Premio']
-                        st.dataframe(df_deuda, use_container_width=True, hide_index=True)
+                        st.dataframe(df_deuda, use_container_width=True, hide_index=True, height=120)
+
+                    # Información relevante (desde B13 en Excel = iloc 12)
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<h3 style='background-color: #1E3A8A; color: white; padding: 8px; border-radius: 5px; margin-bottom: 10px;'>📋 Información Relevante</h3>", unsafe_allow_html=True)
+
+                    df_info = df_cliente.iloc[12:18].copy()
+                    df_info_table = df_info[['Unnamed: 1', 'Unnamed: 2']].copy()
+                    df_info_table.columns = ['Campo', 'Valor']
+                    df_info_table = df_info_table[df_info_table['Campo'].notna()]
+
+                    info_html = '<table style="width: 100%; font-size: 0.9em;">'
+                    for idx, row in df_info_table.iterrows():
+                        campo = str(row['Campo']).strip()
+                        valor = str(row['Valor']).strip() if pd.notna(row['Valor']) else ""
+                        info_html += f'<tr><td style="font-weight: bold; padding: 6px 8px; background-color: #f0f0f0;">{campo}</td><td style="padding: 6px 8px;">{valor}</td></tr>'
+                    info_html += '</table>'
+                    st.markdown(info_html, unsafe_allow_html=True)
 
                 elif cliente == "CASA REIG":
                     st.write("### 📊 Facturación Casa Reig 2026")
