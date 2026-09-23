@@ -118,8 +118,16 @@ def _estilos():
             padding: 8px 18px !important;
         }}
 
+        {SCOPE} .stButton > button * {{
+            color: white !important;
+        }}
+
         {SCOPE} .stButton > button:hover {{
             background-color: var(--primary-dark) !important;
+        }}
+
+        {SCOPE} .stButton > button:hover * {{
+            color: white !important;
         }}
 
         {SCOPE} .syna-card {{
@@ -592,6 +600,14 @@ def _tab_balance():
         estado = st.selectbox("Estado", ["Todas", "Pagadas", "Impagas", "Parciales"], key="balance_estado")
 
     balance = calcular_balance_syna()
+    # Defensivo: si alguna vez el dict viniera incompleto (versión vieja de
+    # syna_db.py en un proceso que no se reinició tras un deploy, por
+    # ejemplo), no tumbar toda la pantalla SYNA por un KeyError.
+    for _clave, _default in [
+        ("total_facturado", 0), ("total_nc", 0), ("total_pagado", 0),
+        ("total_ordenes_pago", 0), ("pagos_sin_aplicar", 0), ("saldo_pendiente", 0),
+    ]:
+        balance.setdefault(_clave, _default)
     invoices = obtener_invoices()
     credits = obtener_credits()
 
