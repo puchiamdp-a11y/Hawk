@@ -153,8 +153,24 @@ def _estilos():
             color: var(--text-h1);
         }}
 
-        {SCOPE} .syna-card-value.positive {{ color: var(--success) !important; }}
-        {SCOPE} .syna-card-value.negative {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value.positive {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value.negative {{ color: var(--success) !important; }}
+
+        {SCOPE} .syna-card-total {{
+            text-align: center;
+            padding: 24px;
+            margin-bottom: 12px;
+            border-width: 2px;
+        }}
+
+        {SCOPE} .syna-card-value-big {{
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text-h1);
+        }}
+
+        {SCOPE} .syna-card-value-big.positive {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value-big.negative {{ color: var(--success) !important; }}
         {SCOPE} .syna-card-value.neutral  {{ color: var(--primary) !important; }}
 
         {SCOPE} .syna-table {{
@@ -197,8 +213,8 @@ def _estilos():
         {SCOPE} .syna-badge-rojo  {{ background: #FEE2E2; color: #B91C1C; }}
         {SCOPE} .syna-badge-ambar {{ background: #FEF3C7; color: #92400E; }}
 
-        {SCOPE} .syna-debe  {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
-        {SCOPE} .syna-haber {{ background: var(--haber-bg); color: var(--haber-text); font-weight: 700; }}
+        {SCOPE} .syna-debe  {{ background: var(--haber-bg); color: var(--haber-text); font-weight: 700; }}
+        {SCOPE} .syna-haber {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
 
         {SCOPE} .syna-filters {{
             background: #EFF6FF;
@@ -669,27 +685,32 @@ def _tab_balance():
     if hay_filtro_activo:
         st.caption("Mostrando el resultado con los filtros aplicados arriba.")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # Tarjeta única y destacada: el número que importa (lo que SYNA debe
+    # pagar realmente, ya con NC y pagos aplicados descontados). Todo lo
+    # demás es el detalle de cómo se compone ese número.
+    color_class = "negative" if saldo_view > 0 else "positive"
+    st.markdown(f"""<div class="syna-card syna-card-total">
+        <div class="syna-card-label">Total a pagar por SYNA (facturado − NC − pagado)</div>
+        <div class="syna-card-value-big {color_class}">${saldo_view:,.0f}</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.caption("Detalle de cómo se compone ese número:")
+
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Total facturado</div>
+            <div class="syna-card-label">Total facturado (bruto)</div>
             <div class="syna-card-value neutral">${total_facturado_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Notas de crédito</div>
+            <div class="syna-card-label">Menos: notas de crédito</div>
             <div class="syna-card-value positive">-${total_nc_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Pagado (aplicado)</div>
+            <div class="syna-card-label">Menos: pagado (aplicado)</div>
             <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
-        </div>""", unsafe_allow_html=True)
-    with col4:
-        color_class = "negative" if saldo_view > 0 else "positive"
-        st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Saldo pendiente</div>
-            <div class="syna-card-value {color_class}">${saldo_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
 
     if balance["pagos_sin_aplicar"] > 0:
