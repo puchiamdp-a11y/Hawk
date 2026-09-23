@@ -272,27 +272,27 @@ def estilos_v4():
 
         /* Filtros sección */
         .syna-filters-section {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
+            background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+            color: #1F2937;
             padding: 24px;
             border-radius: 8px;
             margin-bottom: 24px;
         }
 
         .syna-filters-section h3 {
-            color: white !important;
+            color: #1F2937 !important;
             text-transform: uppercase;
             margin-top: 0 !important;
         }
 
         .syna-filters-section label {
-            color: white !important;
+            color: #1F2937 !important;
             font-weight: 600;
         }
 
         .syna-filters-section input,
         .syna-filters-section select {
-            background-color: rgba(255, 255, 255, 0.95) !important;
+            background-color: rgba(255, 255, 255, 0.98) !important;
             color: var(--text-body) !important;
         }
 
@@ -374,11 +374,6 @@ def pantalla_syna_admin_v4():
 
     st.markdown("---")
 
-    # ACCESO CINTIA
-    mostrar_acceso_cintia()
-
-    st.markdown("---")
-
     # Tabs
     tab_comprobantes, tab_balance, tab_historico = st.tabs([
         "📋 Comprobantes",
@@ -395,6 +390,11 @@ def pantalla_syna_admin_v4():
     with tab_historico:
         tab_historico_v4()
 
+    # ACCESO CINTIA - AL FINAL
+    st.markdown("---")
+    st.markdown("### Acceso Cobranzas")
+    mostrar_acceso_cintia()
+
 
 def mostrar_acceso_cintia():
     """Muestra acceso Cintia con estilos mejorados."""
@@ -410,32 +410,15 @@ def mostrar_acceso_cintia():
     url_base = st.request.base_url if hasattr(st, 'request') else "https://tu-app-url"
     link_cintia = f"{url_base}?role=viewer&token={token}"
 
-    st.markdown(f"""
-    <div class="syna-access-card">
-        <h3>🔐 Acceso para Cobranzas (Cintia)</h3>
-        <p style="color: #047857; font-weight: 500;">
-            Compartir este link y contraseña con el área de Cobranzas
-        </p>
+    col1, col2 = st.columns([1, 1])
 
-        <p style="color: #1E293B; font-weight: 700; font-size: 13px; margin-top: 16px; text-transform: uppercase; letter-spacing: 0.5px;">
-            📎 Link de Acceso
-        </p>
-        <div class="syna-access-link">{link_cintia}</div>
-
-        <p style="color: #1E293B; font-weight: 700; font-size: 13px; margin-top: 16px; text-transform: uppercase; letter-spacing: 0.5px;">
-            🔑 Contraseña
-        </p>
-        <div class="syna-access-link">{password}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
     with col1:
-        if st.button("📋 Copiar Link", use_container_width=True, key="copy_link"):
-            st.info(f"✅ Link copiado")
+        st.write("**Link:**")
+        st.code(link_cintia, language="text")
+
     with col2:
-        if st.button("🔑 Copiar Contraseña", use_container_width=True, key="copy_pwd"):
-            st.info(f"✅ Contraseña copiada")
+        st.write("**Contraseña:**")
+        st.code(password, language="text")
 
 
 # ============================================
