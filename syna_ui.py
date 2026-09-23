@@ -578,55 +578,88 @@ def _form_odp():
     invoices = obtener_invoices()
     pendientes = [inv for inv in invoices if inv["saldo"] > 0]
 
-    mapeos = []
-    total_aplicado = 0
-
     if pendientes:
-        for inv in pendientes:
-            c1, c2, c3 = st.columns([2, 1.3, 1.3])
-            with c1:
-                sel = st.checkbox(inv["invoice_number"], key=f"sel_odp_{inv['id']}")
-            with c2:
-                st.write(f"Saldo: **${inv['saldo']:,.0f}**")
-            with c3:
-                if sel:
-                    app = st.number_input("Aplicar", min_value=0.0, max_value=inv["saldo"],
-                                         step=100.0, key=f"app_odp_{inv['id']}", format="%.2f")
+        # Dropdown multiselect para elegir facturas
+        opciones_display = [f"{inv['invoice_number']} - Saldo: ${inv['saldo']:,.0f}" for inv in pendientes]
+        opciones_map = {display: inv for display, inv in zip(opciones_display, pendientes)}
+
+        seleccionadas_display = st.multiselect(
+            "Facturas a las que aplicar el pago",
+            opciones_display,
+            key="odp_multiselect_facturas"
+        )
+
+        mapeos = []
+        total_aplicado = 0
+
+        if seleccionadas_display:
+            st.write("")  # spacing
+            st.markdown("**Monto a aplicar por factura:**")
+
+            # Tabla con inputs para cada factura seleccionada
+            cols_header = st.columns([2, 1.2, 1.2, 0.8])
+            with cols_header[0]:
+                st.write("**Factura**")
+            with cols_header[1]:
+                st.write("**Saldo**")
+            with cols_header[2]:
+                st.write("**Aplicar**")
+
+            for display in seleccionadas_display:
+                inv = opciones_map[display]
+                cols = st.columns([2, 1.2, 1.2, 0.8])
+
+                with cols[0]:
+                    st.write(inv["invoice_number"])
+                with cols[1]:
+                    st.write(f"${inv['saldo']:,.0f}")
+                with cols[2]:
+                    app = st.number_input(
+                        "Monto",
+                        min_value=0.0,
+                        max_value=inv["saldo"],
+                        step=100.0,
+                        key=f"app_odp_{inv['id']}",
+                        format="%.2f",
+                        label_visibility="collapsed"
+                    )
                     if app > 0:
                         mapeos.append({"invoice_id": inv["id"], "amount": app})
                         total_aplicado += app
 
-        st.markdown("---")
+            st.markdown("---")
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric("Monto de ODP", f"${monto_pago:,.0f}")
-        with c2:
-            st.metric("Total a aplicar", f"${total_aplicado:,.0f}")
-        with c3:
-            diferencia = monto_pago - total_aplicado
-            st.metric("Sin aplicar", f"${diferencia:,.0f}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Monto de ODP", f"${monto_pago:,.0f}")
+            with c2:
+                st.metric("Total a aplicar", f"${total_aplicado:,.0f}")
+            with c3:
+                diferencia = monto_pago - total_aplicado
+                st.metric("Sin aplicar", f"${diferencia:,.0f}")
 
-        if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
-            if monto_pago <= 0:
-                st.error("El monto debe ser mayor a 0")
-            elif total_aplicado > monto_pago:
-                st.error("El total aplicado excede el monto de la orden")
-            elif total_aplicado == 0:
-                st.error("Selecciona al menos una factura para aplicar el pago")
-            else:
-                try:
-                    payment_id = crear_payment(
-                        payment_date=fecha_pago.isoformat(), amount=monto_pago,
-                        payer=pagador, description=descripcion, created_by="Dai",
-                        payment_number=numero_odp
-                    )
-                    for m in mapeos:
-                        crear_mapping(m["invoice_id"], payment_id, m["amount"])
-                    st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(str(e))
+            if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
+                if monto_pago <= 0:
+                    st.error("El monto debe ser mayor a 0")
+                elif total_aplicado > monto_pago:
+                    st.error("El total aplicado excede el monto de la orden")
+                elif total_aplicado == 0:
+                    st.error("Selecciona al menos una factura para aplicar el pago")
+                else:
+                    try:
+                        payment_id = crear_payment(
+                            payment_date=fecha_pago.isoformat(), amount=monto_pago,
+                            payer=pagador, description=descripcion, created_by="Dai",
+                            payment_number=numero_odp
+                        )
+                        for m in mapeos:
+                            crear_mapping(m["invoice_id"], payment_id, m["amount"])
+                        st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
+        else:
+            st.info("Selecciona al menos una factura para continuar")
     else:
         st.info("No hay facturas con saldo pendiente")
 
