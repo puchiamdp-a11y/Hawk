@@ -631,12 +631,6 @@ def _form_odp():
         st.info("No hay facturas con saldo pendiente")
 
     st.markdown('</div>', unsafe_allow_html=True)
-                        for inv in pendientes:
-                            st.session_state.pop(f"sel_{inv['id']}", None)
-                            st.session_state.pop(f"app_{inv['id']}", None)
-                        st.rerun()
-            else:
-                st.info("No hay facturas con saldo pendiente para aplicar este pago.")
 
 
 # ============================================
