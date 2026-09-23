@@ -601,11 +601,12 @@ def _form_odp():
     if todos_pendientes:
         st.markdown("##### Seleccionar documentos a pagar")
 
-        # Multiselect con tipo + número + saldo
-        opciones_display = [
-            f"[{doc['tipo']}] {doc['numero']} - Saldo: ${doc['saldo']:,.0f}"
-            for doc in todos_pendientes
-        ]
+        # Multiselect con tipo + número + saldo (con emojis)
+        opciones_display = []
+        for doc in todos_pendientes:
+            emoji = "📄" if doc['tipo'] == "FC" else "💳"
+            tipo_label = "Factura" if doc['tipo'] == "FC" else "Nota de Crédito"
+            opciones_display.append(f"{emoji} [{tipo_label}] {doc['numero']} - Saldo: ${doc['saldo']:,.0f}")
         opciones_map = {display: doc for display, doc in zip(opciones_display, todos_pendientes)}
 
         seleccionadas_display = st.multiselect(
@@ -626,13 +627,24 @@ def _form_odp():
 
             mapeos = []
             for doc in seleccionados:
-                # Calcular proporción: (saldo doc / saldo total) * monto ODP
                 proporcion = doc["saldo"] / saldo_total_docs if saldo_total_docs > 0 else 0
                 monto_asignado = min(proporcion * monto_pago, doc["saldo"])
 
+                # Colores diferenciados por tipo
+                if doc["tipo"] == "FC":
+                    bg_color = "#E8F5E9"
+                    text_color = "#2E7D32"
+                    emoji = "📄"
+                    tipo_txt = "Factura"
+                else:
+                    bg_color = "#FFF3E0"
+                    text_color = "#E65100"
+                    emoji = "💳"
+                    tipo_txt = "Nota de Crédito"
+
                 col1, col2, col3 = st.columns([2, 1.2, 1.2])
                 with col1:
-                    st.write(f"**{doc['numero']}**")
+                    st.markdown(f'<div style="background-color: {bg_color}; padding: 8px; border-radius: 4px; color: {text_color};"><b>{emoji} {tipo_txt}</b><br/>{doc["numero"]}</div>', unsafe_allow_html=True)
                 with col2:
                     st.write(f"Saldo: ${doc['saldo']:,.0f}")
                 with col3:
