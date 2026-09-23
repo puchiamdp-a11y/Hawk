@@ -323,6 +323,27 @@ def obtener_mappings_por_payment(payment_id):
     return mappings
 
 
+def obtener_mappings_aplicados():
+    """Todos los pagos aplicados a facturas, con la fecha y el número del
+    pago y de la factura correspondiente. Para el libro diario: sin esto,
+    el saldo acumulado del libro diario no incluye las órdenes de pago y
+    no coincide con el saldo pendiente real (que sí las resta)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT m.id, m.amount_applied, p.payment_date, p.payment_number, p.id as payment_id,
+           i.invoice_number
+    FROM syna_invoice_payment_mapping m
+    JOIN syna_payments p ON m.payment_id = p.id
+    JOIN syna_invoices i ON m.invoice_id = i.id
+    """)
+
+    aplicados = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return aplicados
+
+
 def eliminar_mapping(mapping_id):
     """Elimina un mapping."""
     conn = get_connection()
