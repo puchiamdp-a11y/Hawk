@@ -292,8 +292,34 @@ def pantalla_syna_admin():
             st.code(password, language="text")
 
 
+def _ocultar_chrome_streamlit():
+    """Oculta el menú hamburguesa, toolbar y footer nativos de Streamlit.
+
+    Esto es lo único alcanzable por CSS desde acá: son elementos que viven
+    en el mismo documento que la app. El "ícono de cuenta" que Streamlit
+    Community Cloud puede superponer para el dueño del deployment (el
+    selector rápido entre apps del mismo workspace) es un widget inyectado
+    por la PLATAFORMA de hosting, fuera de este documento — ningún CSS o
+    JS de la app puede alcanzarlo ni ocultarlo. Ese widget solo aparece
+    cuando el navegador tiene una sesión iniciada en streamlit.io con la
+    cuenta dueña del deployment; un visitante sin esa sesión (el caso
+    normal de Cintia) no debería verlo nunca.
+    """
+    st.markdown("""
+    <style>
+        #MainMenu, header, footer,
+        [data-testid="stToolbar"], [data-testid="stStatusWidget"],
+        [data-testid="stDecoration"] {
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 def pantalla_syna_viewer():
     """Pantalla SOLO lectura para Cintia - únicamente Balance."""
+    _ocultar_chrome_streamlit()
     with st.container(key=CONTAINER_KEY):
         _estilos()
 
@@ -309,6 +335,7 @@ def pantalla_syna_viewer():
 
 def pantalla_syna_con_autenticacion():
     """Autenticación simple para el acceso de Cintia."""
+    _ocultar_chrome_streamlit()
     with st.container(key=CONTAINER_KEY):
         _estilos()
 
@@ -620,29 +647,49 @@ def _tab_balance():
         estado_map = {"Pagadas": "Pagada", "Impagas": "Impaga", "Parciales": "Parcialmente pagada"}
         inv_filtradas = [i for i in inv_filtradas if i["estado"] == estado_map.get(estado, "")]
 
+    # Las NC se filtran solo por fecha (no tienen "estado" de factura):
+    # así el filtro de período afecta a todo el libro diario por igual.
+    credits_filtrados = credits
+    if fecha_desde:
+        credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] >= fecha_desde.isoformat()]
+    if fecha_hasta:
+        credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] <= fecha_hasta.isoformat()]
+
+    hay_filtro_activo = bool(fecha_desde or fecha_hasta or estado != "Todas")
+
+    # Las tarjetas de resumen reflejan lo que está filtrado, no el total
+    # general: si hay un filtro activo, se recalculan sobre inv_filtradas
+    # / credits_filtrados en vez de usar el balance global.
+    total_facturado_view = sum(i["amount"] for i in inv_filtradas)
+    total_pagado_view = sum(i["amount"] - i["saldo"] for i in inv_filtradas)
+    total_nc_view = sum(c["amount"] for c in credits_filtrados)
+    saldo_view = total_facturado_view - total_nc_view - total_pagado_view
+
     st.markdown("#### Estado general de cuenta")
+    if hay_filtro_activo:
+        st.caption("Mostrando el resultado con los filtros aplicados arriba.")
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">Total facturado</div>
-            <div class="syna-card-value neutral">${balance['total_facturado']:,.0f}</div>
+            <div class="syna-card-value neutral">${total_facturado_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">Notas de crédito</div>
-            <div class="syna-card-value positive">-${balance['total_nc']:,.0f}</div>
+            <div class="syna-card-value positive">-${total_nc_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">Pagado (aplicado)</div>
-            <div class="syna-card-value positive">-${balance['total_pagado']:,.0f}</div>
+            <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col4:
-        color_class = "negative" if balance['saldo_pendiente'] > 0 else "positive"
+        color_class = "negative" if saldo_view > 0 else "positive"
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">Saldo pendiente</div>
-            <div class="syna-card-value {color_class}">${balance['saldo_pendiente']:,.0f}</div>
+            <div class="syna-card-value {color_class}">${saldo_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
 
     if balance["pagos_sin_aplicar"] > 0:
@@ -651,7 +698,7 @@ def _tab_balance():
     st.markdown("---")
     st.markdown("#### Libro diario")
 
-    if inv_filtradas or credits:
+    if inv_filtradas or credits_filtrados:
         html = '<table class="syna-table"><thead><tr>'
         html += '<th>Fecha</th><th>Comprobante</th><th>Debe</th><th>Haber</th><th>Saldo acumulado</th>'
         html += '</tr></thead><tbody>'
@@ -659,7 +706,7 @@ def _tab_balance():
         movimientos = []
         for inv in inv_filtradas:
             movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"]))
-        for cr in credits:
+        for cr in credits_filtrados:
             movimientos.append((cr.get("credit_date") or "", "haber", cr["credit_number"], cr["amount"]))
 
         movimientos.sort(key=lambda m: m[0])
