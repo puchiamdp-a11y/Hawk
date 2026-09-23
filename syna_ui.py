@@ -600,6 +600,7 @@ def _form_odp():
 
     if todos_pendientes:
         st.markdown("##### Seleccionar documentos a pagar")
+        st.caption("⚠️ **Selecciona al menos un documento** para ver la distribución automática y registrar el pago")
 
         # Multiselect con tipo + número + saldo (con emojis)
         opciones_display = []
@@ -669,7 +670,9 @@ def _form_odp():
                 st.metric("Sin aplicar", f"${diferencia:,.0f}")
 
             if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
-                if monto_pago <= 0:
+                if not numero_odp.strip():
+                    st.error("Ingresa un número de ODP")
+                elif monto_pago <= 0:
                     st.error("El monto debe ser mayor a 0")
                 elif total_aplicado == 0:
                     st.error("Selecciona al menos un documento para aplicar el pago")
