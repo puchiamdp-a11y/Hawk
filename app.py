@@ -4,6 +4,7 @@ import requests
 from io import BytesIO
 from syna_db import inicializar_db
 from syna_ui import pantalla_syna_admin
+from syna_viewer import pantalla_syna_viewer, pantalla_syna_con_autenticacion
 
 # ============================================
 # CONFIGURACIÓN
@@ -435,6 +436,23 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================
+# DETECTAR ROL (ADMIN vs VIEWER)
+# ============================================
+query_params = st.query_params
+if query_params.get("role") == "viewer":
+    # Modo Cintia (viewer)
+    if "syna_authenticated" not in st.session_state:
+        st.session_state.syna_authenticated = False
+
+    if not st.session_state.syna_authenticated:
+        pantalla_syna_con_autenticacion()
+        st.stop()
+    else:
+        # Usuario autenticado - mostrar pantalla viewer
+        pantalla_syna_viewer()
+        st.stop()
 
 # ============================================
 # CARGAR DATOS (CON CACHE OPTIMIZADO)
