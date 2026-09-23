@@ -552,9 +552,9 @@ def _form_nc():
 
 def _form_odp():
     st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
-    st.markdown("**Registrar orden de pago + Aplicar a facturas**")
+    st.markdown("**Registrar orden de pago + Aplicar a facturas/NC**")
 
-    # Datos de la ODP en las primeras columnas
+    # Datos de la ODP
     col1, col2 = st.columns(2)
     with col1:
         numero_odp = st.text_input("Número ODP", placeholder="ODP-2026-001", key="numero_odp_input")
@@ -571,64 +571,82 @@ def _form_odp():
 
     st.markdown("---")
 
-    # Seleccionar facturas/NC a las que aplicar el pago
-    st.markdown("##### Aplicar a facturas")
-    st.caption("Selecciona a cuáles facturas aplicar este pago. Puedes aplicar todo el monto a una o dividirlo entre varias.")
-
+    # Recopilar facturas y NC con saldo pendiente
     invoices = obtener_invoices()
-    pendientes = [inv for inv in invoices if inv["saldo"] > 0]
+    credits = obtener_credits()
 
-    if pendientes:
-        # Dropdown multiselect para elegir facturas
-        opciones_display = [f"{inv['invoice_number']} - Saldo: ${inv['saldo']:,.0f}" for inv in pendientes]
-        opciones_map = {display: inv for display, inv in zip(opciones_display, pendientes)}
+    pendientes_fc = [inv for inv in invoices if inv["saldo"] > 0]
+    pendientes_nc = [cred for cred in credits if cred["amount"] - cred.get("used", 0) > 0]
+
+    # Combinar en lista única con tipo para identificarlos
+    todos_pendientes = []
+    for inv in pendientes_fc:
+        todos_pendientes.append({
+            "tipo": "FC",
+            "id": inv["id"],
+            "numero": inv["invoice_number"],
+            "saldo": inv["saldo"],
+            "data": inv
+        })
+    for cred in pendientes_nc:
+        saldo_nc = cred["amount"] - cred.get("used", 0)
+        todos_pendientes.append({
+            "tipo": "NC",
+            "id": cred["id"],
+            "numero": cred["credit_number"],
+            "saldo": saldo_nc,
+            "data": cred
+        })
+
+    if todos_pendientes:
+        st.markdown("##### Seleccionar documentos a pagar")
+
+        # Multiselect con tipo + número + saldo
+        opciones_display = [
+            f"[{doc['tipo']}] {doc['numero']} - Saldo: ${doc['saldo']:,.0f}"
+            for doc in todos_pendientes
+        ]
+        opciones_map = {display: doc for display, doc in zip(opciones_display, todos_pendientes)}
 
         seleccionadas_display = st.multiselect(
-            "Facturas a las que aplicar el pago",
+            "Documentos a pagar",
             opciones_display,
-            key="odp_multiselect_facturas"
+            key="odp_multiselect_docs"
         )
 
-        mapeos = []
-        total_aplicado = 0
+        if seleccionadas_display and monto_pago > 0:
+            seleccionados = [opciones_map[d] for d in seleccionadas_display]
 
-        if seleccionadas_display:
-            st.write("")  # spacing
-            st.markdown("**Monto a aplicar por factura:**")
+            # Calcular saldo total de documentos seleccionados
+            saldo_total_docs = sum(doc["saldo"] for doc in seleccionados)
 
-            # Tabla con inputs para cada factura seleccionada
-            cols_header = st.columns([2, 1.2, 1.2, 0.8])
-            with cols_header[0]:
-                st.write("**Factura**")
-            with cols_header[1]:
-                st.write("**Saldo**")
-            with cols_header[2]:
-                st.write("**Aplicar**")
+            # Calcular distribución proporcional del monto de la ODP
+            st.write("")
+            st.markdown("**Distribución automática del pago:**")
 
-            for display in seleccionadas_display:
-                inv = opciones_map[display]
-                cols = st.columns([2, 1.2, 1.2, 0.8])
+            mapeos = []
+            for doc in seleccionados:
+                # Calcular proporción: (saldo doc / saldo total) * monto ODP
+                proporcion = doc["saldo"] / saldo_total_docs if saldo_total_docs > 0 else 0
+                monto_asignado = min(proporcion * monto_pago, doc["saldo"])
 
-                with cols[0]:
-                    st.write(inv["invoice_number"])
-                with cols[1]:
-                    st.write(f"${inv['saldo']:,.0f}")
-                with cols[2]:
-                    app = st.number_input(
-                        "Monto",
-                        min_value=0.0,
-                        max_value=inv["saldo"],
-                        step=100.0,
-                        key=f"app_odp_{inv['id']}",
-                        format="%.2f",
-                        label_visibility="collapsed"
-                    )
-                    if app > 0:
-                        mapeos.append({"invoice_id": inv["id"], "amount": app})
-                        total_aplicado += app
+                col1, col2, col3 = st.columns([2, 1.2, 1.2])
+                with col1:
+                    st.write(f"**{doc['numero']}**")
+                with col2:
+                    st.write(f"Saldo: ${doc['saldo']:,.0f}")
+                with col3:
+                    st.write(f"**${monto_asignado:,.0f}**")
+
+                mapeos.append({
+                    "tipo": doc["tipo"],
+                    "id": doc["id"],
+                    "amount": monto_asignado
+                })
+
+            total_aplicado = sum(m["amount"] for m in mapeos)
 
             st.markdown("---")
-
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.metric("Monto de ODP", f"${monto_pago:,.0f}")
@@ -641,10 +659,8 @@ def _form_odp():
             if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
                 if monto_pago <= 0:
                     st.error("El monto debe ser mayor a 0")
-                elif total_aplicado > monto_pago:
-                    st.error("El total aplicado excede el monto de la orden")
                 elif total_aplicado == 0:
-                    st.error("Selecciona al menos una factura para aplicar el pago")
+                    st.error("Selecciona al menos un documento para aplicar el pago")
                 else:
                     try:
                         payment_id = crear_payment(
@@ -653,15 +669,17 @@ def _form_odp():
                             payment_number=numero_odp
                         )
                         for m in mapeos:
-                            crear_mapping(m["invoice_id"], payment_id, m["amount"])
+                            crear_mapping(m["id"], payment_id, m["amount"])
                         st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
                         st.rerun()
                     except Exception as e:
                         st.error(str(e))
+        elif not todos_pendientes:
+            st.info("No hay documentos con saldo pendiente")
         else:
-            st.info("Selecciona al menos una factura para continuar")
+            st.info("Selecciona al menos un documento para ver la distribución")
     else:
-        st.info("No hay facturas con saldo pendiente")
+        st.info("No hay facturas ni NC con saldo pendiente")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
