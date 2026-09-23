@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from io import BytesIO
 from syna_db import inicializar_db
-from syna_ui_v3 import pantalla_syna_admin_v3
+from syna_ui_v4 import pantalla_syna_admin_v4
 from syna_viewer_v2 import pantalla_syna_viewer_v2, pantalla_syna_con_autenticacion_v2
 
 # ============================================
@@ -510,7 +510,7 @@ with st.sidebar:
     if st.button("Post Emisión", key="btn_post_emision", use_container_width=True):
         st.session_state.pantalla_actual = "Post Emisión"
 
-    if st.button("📊 Cobranzas SYNA", key="btn_syna", use_container_width=True):
+    if st.button("Cobranzas SYNA", key="btn_syna", use_container_width=True):
         st.session_state.pantalla_actual = "Cobranzas SYNA"
 
     st.write("")
@@ -1385,7 +1385,7 @@ elif pantalla_actual == "Proveedores":
 # ============================================
 elif pantalla_actual == "Cobranzas SYNA":
     inicializar_db()
-    pantalla_syna_admin_v3()
+    pantalla_syna_admin_v4()
 
 # ============================================
 # PANTALLA 6: POST EMISIÓN
