@@ -44,6 +44,7 @@ def inicializar_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_number TEXT,
         payment_date TEXT NOT NULL,
         amount REAL NOT NULL,
         payer TEXT NOT NULL,
@@ -52,6 +53,12 @@ def inicializar_db():
         created_by TEXT NOT NULL
     )
     """)
+
+    # Migración: agregar payment_number si la tabla ya existía sin esa columna
+    cursor.execute("PRAGMA table_info(syna_payments)")
+    columnas = [c[1] for c in cursor.fetchall()]
+    if "payment_number" not in columnas:
+        cursor.execute("ALTER TABLE syna_payments ADD COLUMN payment_number TEXT")
 
     # TABLA 3: Mapping entre facturas y pagos
     cursor.execute("""
@@ -220,22 +227,23 @@ def eliminar_invoice(invoice_id):
 # FUNCIONES PARA PAYMENTS
 # ============================================
 
-def crear_payment(payment_date, amount, payer, description="", created_by="Dai"):
+def crear_payment(payment_date, amount, payer, description="", created_by="Dai", payment_number=""):
     """Crea una nueva orden de pago."""
     conn = get_connection()
     cursor = conn.cursor()
 
     now = datetime.now().isoformat()
     cursor.execute("""
-    INSERT INTO syna_payments (payment_date, amount, payer, description, created_at, created_by)
-    VALUES (?, ?, ?, ?, ?, ?)
-    """, (payment_date, amount, payer, description, now, created_by))
+    INSERT INTO syna_payments (payment_number, payment_date, amount, payer, description, created_at, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (payment_number, payment_date, amount, payer, description, now, created_by))
 
     conn.commit()
     payment_id = cursor.lastrowid
 
     # Registrar en auditoría
     registrar_auditoria(conn, created_by, "payment_registered", {
+        "payment_number": payment_number,
         "amount": amount,
         "payer": payer,
         "payment_date": payment_date
@@ -251,9 +259,9 @@ def obtener_payments():
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, payment_date, amount, payer, description, created_at, created_by
+    SELECT id, payment_number, payment_date, amount, payer, description, created_at, created_by
     FROM syna_payments
-    ORDER BY payment_date DESC
+    ORDER BY payment_date DESC, id DESC
     """)
 
     payments = [dict(row) for row in cursor.fetchall()]
@@ -390,24 +398,43 @@ def marcar_credit_usado(credit_id, usado=True):
 # ============================================
 
 def calcular_balance_syna():
-    """Calcula balance total SYNA."""
+    """Calcula balance total SYNA: Facturas (debe) contra NC + pagos aplicados (haber).
+
+    total_pagado usa el monto efectivamente APLICADO (matched) a facturas,
+    no el bruto de syna_payments, para que el saldo general sea coherente
+    con calcular_saldo_factura() de cada factura individual. Un pago
+    registrado pero sin aplicar (matching pendiente) no reduce el saldo.
+    """
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Total facturado
+    # Total facturado (DEBE)
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_invoices")
     total_facturado = cursor.fetchone()["total"]
 
-    # Total pagado
+    # Total notas de crédito (HABER) - reducen lo que SYNA debe
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_credits")
+    total_nc = cursor.fetchone()["total"]
+
+    # Total bruto de órdenes de pago registradas (informativo)
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_payments")
-    total_pagado = cursor.fetchone()["total"]
+    total_ordenes_pago = cursor.fetchone()["total"]
+
+    # Total EFECTIVAMENTE aplicado a facturas (HABER real)
+    cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_invoice_payment_mapping")
+    total_pagado_aplicado = cursor.fetchone()["total"]
 
     conn.close()
 
+    saldo_pendiente = total_facturado - total_nc - total_pagado_aplicado
+
     return {
         "total_facturado": total_facturado,
-        "total_pagado": total_pagado,
-        "saldo_pendiente": total_facturado - total_pagado
+        "total_nc": total_nc,
+        "total_ordenes_pago": total_ordenes_pago,
+        "total_pagado": total_pagado_aplicado,
+        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_aplicado,
+        "saldo_pendiente": saldo_pendiente
     }
 
 
