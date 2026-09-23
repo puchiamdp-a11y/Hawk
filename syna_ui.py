@@ -12,17 +12,38 @@ eso se ejecuta en el import y contamina toda la app.
 
 import streamlit as st
 import uuid
+from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
     crear_invoice, obtener_invoices,
     crear_payment, obtener_payments, obtener_payment,
-    crear_mapping,
+    crear_mapping, obtener_mappings_aplicados,
     crear_credit, obtener_credits,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log
 )
 
 CONTAINER_KEY = "syna_root"
+
+
+def _fmt_fecha(fecha_iso):
+    """Convierte 'YYYY-MM-DD' (o un datetime ISO) a 'DD/MM/AAAA'."""
+    if not fecha_iso:
+        return "—"
+    try:
+        return datetime.fromisoformat(str(fecha_iso)[:10]).strftime("%d/%m/%Y")
+    except ValueError:
+        return str(fecha_iso)
+
+
+def _fmt_fecha_hora(timestamp_iso):
+    """Convierte un timestamp ISO completo a 'DD/MM/AAAA HH:MM'."""
+    if not timestamp_iso:
+        return "—"
+    try:
+        return datetime.fromisoformat(str(timestamp_iso)).strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return str(timestamp_iso)
 SCOPE = f".st-key-{CONTAINER_KEY}"
 
 
@@ -153,8 +174,24 @@ def _estilos():
             color: var(--text-h1);
         }}
 
-        {SCOPE} .syna-card-value.positive {{ color: var(--success) !important; }}
-        {SCOPE} .syna-card-value.negative {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value.positive {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value.negative {{ color: var(--success) !important; }}
+
+        {SCOPE} .syna-card-total {{
+            text-align: center;
+            padding: 24px;
+            margin-bottom: 12px;
+            border-width: 2px;
+        }}
+
+        {SCOPE} .syna-card-value-big {{
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--text-h1);
+        }}
+
+        {SCOPE} .syna-card-value-big.positive {{ color: var(--accent) !important; }}
+        {SCOPE} .syna-card-value-big.negative {{ color: var(--success) !important; }}
         {SCOPE} .syna-card-value.neutral  {{ color: var(--primary) !important; }}
 
         {SCOPE} .syna-table {{
@@ -197,8 +234,8 @@ def _estilos():
         {SCOPE} .syna-badge-rojo  {{ background: #FEE2E2; color: #B91C1C; }}
         {SCOPE} .syna-badge-ambar {{ background: #FEF3C7; color: #92400E; }}
 
-        {SCOPE} .syna-debe  {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
-        {SCOPE} .syna-haber {{ background: var(--haber-bg); color: var(--haber-text); font-weight: 700; }}
+        {SCOPE} .syna-debe  {{ background: var(--haber-bg); color: var(--haber-text); font-weight: 700; }}
+        {SCOPE} .syna-haber {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
 
         {SCOPE} .syna-filters {{
             background: #EFF6FF;
@@ -417,20 +454,20 @@ def _tab_comprobantes():
     for inv in invoices[:10]:
         clase, texto = badge_por_estado.get(inv["estado"], ("syna-badge-ambar", inv["estado"]))
         html += f'<tr><td><strong>{inv["invoice_number"]}</strong></td><td>Factura</td>'
-        html += f'<td>${inv["amount"]:,.2f}</td><td>{inv["invoice_date"] or "—"}</td>'
+        html += f'<td>${inv["amount"]:,.2f}</td><td>{_fmt_fecha(inv["invoice_date"])}</td>'
         html += f'<td><span class="syna-badge {clase}">{texto}</span></td></tr>'
 
     for cr in credits[:5]:
         estado = "Utilizada" if cr["used"] else "Disponible"
         clase = "syna-badge-verde" if not cr["used"] else "syna-badge-ambar"
         html += f'<tr><td><strong>{cr["credit_number"]}</strong></td><td>Nota de Crédito</td>'
-        html += f'<td>${cr["amount"]:,.2f}</td><td>{cr["credit_date"] or "—"}</td>'
+        html += f'<td>${cr["amount"]:,.2f}</td><td>{_fmt_fecha(cr["credit_date"])}</td>'
         html += f'<td><span class="syna-badge {clase}">{estado}</span></td></tr>'
 
     for pago in payments[:5]:
         numero_visible = pago.get("payment_number") or f"ODP-{pago['id']}"
         html += f'<tr><td><strong>{numero_visible}</strong></td><td>Orden de Pago</td>'
-        html += f'<td>${pago["amount"]:,.2f}</td><td>{pago["payment_date"]}</td>'
+        html += f'<td>${pago["amount"]:,.2f}</td><td>{_fmt_fecha(pago["payment_date"])}</td>'
         html += '<td><span class="syna-badge syna-badge-verde">Registrada</span></td></tr>'
 
     html += '</tbody></table>'
@@ -669,36 +706,51 @@ def _tab_balance():
     if hay_filtro_activo:
         st.caption("Mostrando el resultado con los filtros aplicados arriba.")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # Tarjeta única y destacada: el número que importa (lo que SYNA debe
+    # pagar realmente, ya con NC y pagos aplicados descontados). Todo lo
+    # demás es el detalle de cómo se compone ese número.
+    color_class = "negative" if saldo_view > 0 else "positive"
+    st.markdown(f"""<div class="syna-card syna-card-total">
+        <div class="syna-card-label">Total a pagar por SYNA (facturado − NC − pagado)</div>
+        <div class="syna-card-value-big {color_class}">${saldo_view:,.0f}</div>
+    </div>""", unsafe_allow_html=True)
+
+    st.caption("Detalle de cómo se compone ese número:")
+
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Total facturado</div>
+            <div class="syna-card-label">Total facturado (bruto)</div>
             <div class="syna-card-value neutral">${total_facturado_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Notas de crédito</div>
+            <div class="syna-card-label">Menos: notas de crédito</div>
             <div class="syna-card-value positive">-${total_nc_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Pagado (aplicado)</div>
+            <div class="syna-card-label">Menos: pagado (aplicado)</div>
             <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
-        </div>""", unsafe_allow_html=True)
-    with col4:
-        color_class = "negative" if saldo_view > 0 else "positive"
-        st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Saldo pendiente</div>
-            <div class="syna-card-value {color_class}">${saldo_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
 
     if balance["pagos_sin_aplicar"] > 0:
         st.markdown(f'<div class="syna-alert">Hay ${balance["pagos_sin_aplicar"]:,.2f} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
 
+    # Pagos aplicados a facturas, filtrados por la misma fecha que el
+    # resto (fecha del pago, no de la factura): sin esto el libro diario
+    # no restaba los pagos y su saldo final no coincidía con el de las
+    # tarjetas de arriba (que sí los restan).
+    aplicados_filtrados = obtener_mappings_aplicados()
+    if fecha_desde:
+        aplicados_filtrados = [a for a in aplicados_filtrados if a["payment_date"] and a["payment_date"] >= fecha_desde.isoformat()]
+    if fecha_hasta:
+        aplicados_filtrados = [a for a in aplicados_filtrados if a["payment_date"] and a["payment_date"] <= fecha_hasta.isoformat()]
+
     st.markdown("---")
     st.markdown("#### Libro diario")
 
-    if inv_filtradas or credits_filtrados:
+    if inv_filtradas or credits_filtrados or aplicados_filtrados:
         html = '<table class="syna-table"><thead><tr>'
         html += '<th>Fecha</th><th>Comprobante</th><th>Debe</th><th>Haber</th><th>Saldo acumulado</th>'
         html += '</tr></thead><tbody>'
@@ -708,12 +760,16 @@ def _tab_balance():
             movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"]))
         for cr in credits_filtrados:
             movimientos.append((cr.get("credit_date") or "", "haber", cr["credit_number"], cr["amount"]))
+        for ap in aplicados_filtrados:
+            numero_pago = ap.get("payment_number") or f"ODP-{ap['payment_id']}"
+            etiqueta = f"{numero_pago} → {ap['invoice_number']}"
+            movimientos.append((ap.get("payment_date") or "", "haber", etiqueta, ap["amount_applied"]))
 
         movimientos.sort(key=lambda m: m[0])
 
         saldo = 0
         for fecha, tipo, numero, monto in movimientos:
-            html += f'<tr><td>{fecha or "—"}</td><td><strong>{numero}</strong></td>'
+            html += f'<tr><td>{_fmt_fecha(fecha)}</td><td><strong>{numero}</strong></td>'
             if tipo == "debe":
                 html += f'<td class="syna-debe">${monto:,.2f}</td><td></td>'
                 saldo += monto
@@ -724,6 +780,9 @@ def _tab_balance():
 
         html += '</tbody></table>'
         st.markdown(html, unsafe_allow_html=True)
+
+        if abs(saldo - saldo_view) > 0.01:
+            st.warning(f"El saldo acumulado del libro diario (${saldo:,.2f}) no coincide con el total a pagar de arriba (${saldo_view:,.2f}). Puede deberse a un pago aplicado fuera del rango de fechas filtrado.")
     else:
         st.info("Sin comprobantes para los filtros seleccionados.")
 
@@ -736,7 +795,7 @@ def _tab_balance():
             st.markdown(f"""
             <div class="syna-card" style="margin-bottom:8px;">
                 <strong style="color:#B91C1C;">{v['invoice_number']}</strong>
-                <span style="color:var(--text-body);"> · vence {v['due_date']} · saldo ${v['saldo']:,.2f}</span>
+                <span style="color:var(--text-body);"> · vence {_fmt_fecha(v['due_date'])} · saldo ${v['saldo']:,.2f}</span>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -757,7 +816,7 @@ def _tab_historico():
 
     html = '<table class="syna-table"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th></tr></thead><tbody>'
     for log in logs[:50]:
-        html += f'<tr><td>{log["timestamp"][:16]}</td><td>{log["user"]}</td>'
+        html += f'<tr><td>{_fmt_fecha_hora(log["timestamp"])}</td><td>{log["user"]}</td>'
         html += f'<td>{log["action"].replace("_", " ").title()}</td></tr>'
     html += '</tbody></table>'
     st.markdown(html, unsafe_allow_html=True)
