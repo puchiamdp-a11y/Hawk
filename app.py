@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import requests
 from io import BytesIO
+from syna_db import inicializar_db
+from syna_ui import pantalla_syna_admin
 
 # ============================================
 # CONFIGURACIÓN
@@ -489,6 +491,9 @@ with st.sidebar:
 
     if st.button("Post Emisión", key="btn_post_emision", use_container_width=True):
         st.session_state.pantalla_actual = "Post Emisión"
+
+    if st.button("📊 Cobranzas SYNA", key="btn_syna", use_container_width=True):
+        st.session_state.pantalla_actual = "Cobranzas SYNA"
 
     st.write("")
     st.markdown("---")
@@ -1358,7 +1363,14 @@ elif pantalla_actual == "Proveedores":
         st.error("❌ Pestaña 'FC Proveedores' no encontrada")
 
 # ============================================
-# PANTALLA 5: POST EMISIÓN
+# PANTALLA 5.5: COBRANZAS SYNA
+# ============================================
+elif pantalla_actual == "Cobranzas SYNA":
+    inicializar_db()
+    pantalla_syna_admin()
+
+# ============================================
+# PANTALLA 6: POST EMISIÓN
 # ============================================
 elif pantalla_actual == "Post Emisión":
     st.title("Post Emisión")
