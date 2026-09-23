@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import requests
 from io import BytesIO
+from syna_db import inicializar_db
+from syna_ui import pantalla_syna_admin
+from syna_viewer import pantalla_syna_viewer, pantalla_syna_con_autenticacion
 
 # ============================================
 # CONFIGURACIÓN
@@ -435,6 +438,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
+# DETECTAR ROL (ADMIN vs VIEWER)
+# ============================================
+query_params = st.query_params
+if query_params.get("role") == "viewer":
+    # Modo Cintia (viewer)
+    if "syna_authenticated" not in st.session_state:
+        st.session_state.syna_authenticated = False
+
+    if not st.session_state.syna_authenticated:
+        pantalla_syna_con_autenticacion()
+        st.stop()
+    else:
+        # Usuario autenticado - mostrar pantalla viewer
+        pantalla_syna_viewer()
+        st.stop()
+
+# ============================================
 # CARGAR DATOS (CON CACHE OPTIMIZADO)
 # ============================================
 import time
@@ -489,6 +509,9 @@ with st.sidebar:
 
     if st.button("Post Emisión", key="btn_post_emision", use_container_width=True):
         st.session_state.pantalla_actual = "Post Emisión"
+
+    if st.button("📊 Cobranzas SYNA", key="btn_syna", use_container_width=True):
+        st.session_state.pantalla_actual = "Cobranzas SYNA"
 
     st.write("")
     st.markdown("---")
@@ -1358,7 +1381,14 @@ elif pantalla_actual == "Proveedores":
         st.error("❌ Pestaña 'FC Proveedores' no encontrada")
 
 # ============================================
-# PANTALLA 5: POST EMISIÓN
+# PANTALLA 5.5: COBRANZAS SYNA
+# ============================================
+elif pantalla_actual == "Cobranzas SYNA":
+    inicializar_db()
+    pantalla_syna_admin()
+
+# ============================================
+# PANTALLA 6: POST EMISIÓN
 # ============================================
 elif pantalla_actual == "Post Emisión":
     st.title("Post Emisión")
