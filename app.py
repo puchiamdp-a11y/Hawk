@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from io import BytesIO
 from syna_db import inicializar_db
-from syna_ui_v4 import pantalla_syna_admin_v4
+from syna_ui_v5 import pantalla_syna_admin_v5, pantalla_syna_viewer_v5, pantalla_syna_con_autenticacion_v5
 from syna_viewer_v2 import pantalla_syna_viewer_v2, pantalla_syna_con_autenticacion_v2
 
 # ============================================
@@ -442,16 +442,18 @@ st.markdown("""
 # ============================================
 query_params = st.query_params
 if query_params.get("role") == "viewer":
-    # Modo Cintia (viewer)
+    # Modo Cintia (viewer) - SOLO BALANCE
+    inicializar_db()
+
     if "syna_authenticated" not in st.session_state:
         st.session_state.syna_authenticated = False
 
     if not st.session_state.syna_authenticated:
-        pantalla_syna_con_autenticacion_v2()
+        pantalla_syna_con_autenticacion_v5()
         st.stop()
     else:
-        # Usuario autenticado - mostrar pantalla viewer
-        pantalla_syna_viewer_v2()
+        # Usuario autenticado - mostrar SOLO tab balance
+        pantalla_syna_viewer_v5()
         st.stop()
 
 # ============================================
@@ -1385,7 +1387,7 @@ elif pantalla_actual == "Proveedores":
 # ============================================
 elif pantalla_actual == "Cobranzas SYNA":
     inicializar_db()
-    pantalla_syna_admin_v4()
+    pantalla_syna_admin_v5()
 
 # ============================================
 # PANTALLA 6: POST EMISIÓN
