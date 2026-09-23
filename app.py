@@ -3,8 +3,8 @@ import pandas as pd
 import requests
 from io import BytesIO
 from syna_db import inicializar_db
-from syna_ui import pantalla_syna_admin
-from syna_viewer import pantalla_syna_viewer, pantalla_syna_con_autenticacion
+from syna_ui_v2 import pantalla_syna_admin_v2
+from syna_viewer_v2 import pantalla_syna_viewer_v2, pantalla_syna_con_autenticacion_v2
 
 # ============================================
 # CONFIGURACIÓN
@@ -447,11 +447,11 @@ if query_params.get("role") == "viewer":
         st.session_state.syna_authenticated = False
 
     if not st.session_state.syna_authenticated:
-        pantalla_syna_con_autenticacion()
+        pantalla_syna_con_autenticacion_v2()
         st.stop()
     else:
         # Usuario autenticado - mostrar pantalla viewer
-        pantalla_syna_viewer()
+        pantalla_syna_viewer_v2()
         st.stop()
 
 # ============================================
@@ -1385,7 +1385,7 @@ elif pantalla_actual == "Proveedores":
 # ============================================
 elif pantalla_actual == "Cobranzas SYNA":
     inicializar_db()
-    pantalla_syna_admin()
+    pantalla_syna_admin_v2()
 
 # ============================================
 # PANTALLA 6: POST EMISIÓN
