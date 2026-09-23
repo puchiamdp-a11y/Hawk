@@ -11,6 +11,7 @@ eso se ejecuta en el import y contamina toda la app.
 """
 
 import streamlit as st
+import pandas as pd
 import uuid
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
@@ -551,25 +552,68 @@ def _form_nc():
 
 def _form_odp():
     st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
-    with st.form("odp_form", clear_on_submit=True):
-        st.markdown("**Registrar orden de pago**")
-        col1, col2 = st.columns(2)
-        with col1:
-            numero_odp = st.text_input("Número ODP", placeholder="ODP-2026-001")
-        with col2:
-            fecha_pago = st.date_input("Fecha")
+    st.markdown("**Registrar orden de pago + Aplicar a facturas**")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            monto_pago = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f")
-        with col2:
-            pagador = st.selectbox("Pagador", ["SYNA", "Blisterassist"])
+    # Datos de la ODP en las primeras columnas
+    col1, col2 = st.columns(2)
+    with col1:
+        numero_odp = st.text_input("Número ODP", placeholder="ODP-2026-001", key="numero_odp_input")
+    with col2:
+        fecha_pago = st.date_input("Fecha", key="fecha_pago_input")
 
-        descripcion = st.text_area("Descripción", height=60)
+    col1, col2 = st.columns(2)
+    with col1:
+        monto_pago = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f", key="monto_pago_input")
+    with col2:
+        pagador = st.selectbox("Pagador", ["SYNA", "Blisterassist"], key="pagador_input")
 
-        if st.form_submit_button("Registrar orden de pago", use_container_width=True):
+    descripcion = st.text_area("Descripción", height=60, key="descripcion_input")
+
+    st.markdown("---")
+
+    # Seleccionar facturas/NC a las que aplicar el pago
+    st.markdown("##### Aplicar a facturas")
+    st.caption("Selecciona a cuáles facturas aplicar este pago. Puedes aplicar todo el monto a una o dividirlo entre varias.")
+
+    invoices = obtener_invoices()
+    pendientes = [inv for inv in invoices if inv["saldo"] > 0]
+
+    mapeos = []
+    total_aplicado = 0
+
+    if pendientes:
+        for inv in pendientes:
+            c1, c2, c3 = st.columns([2, 1.3, 1.3])
+            with c1:
+                sel = st.checkbox(inv["invoice_number"], key=f"sel_odp_{inv['id']}")
+            with c2:
+                st.write(f"Saldo: **${inv['saldo']:,.0f}**")
+            with c3:
+                if sel:
+                    app = st.number_input("Aplicar", min_value=0.0, max_value=inv["saldo"],
+                                         step=100.0, key=f"app_odp_{inv['id']}", format="%.2f")
+                    if app > 0:
+                        mapeos.append({"invoice_id": inv["id"], "amount": app})
+                        total_aplicado += app
+
+        st.markdown("---")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Monto de ODP", f"${monto_pago:,.0f}")
+        with c2:
+            st.metric("Total a aplicar", f"${total_aplicado:,.0f}")
+        with c3:
+            diferencia = monto_pago - total_aplicado
+            st.metric("Sin aplicar", f"${diferencia:,.0f}")
+
+        if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
             if monto_pago <= 0:
                 st.error("El monto debe ser mayor a 0")
+            elif total_aplicado > monto_pago:
+                st.error("El total aplicado excede el monto de la orden")
+            elif total_aplicado == 0:
+                st.error("Selecciona al menos una factura para aplicar el pago")
             else:
                 try:
                     payment_id = crear_payment(
@@ -577,71 +621,16 @@ def _form_odp():
                         payer=pagador, description=descripcion, created_by="Dai",
                         payment_number=numero_odp
                     )
-                    st.session_state.ultimo_pago_id = payment_id
-                    st.session_state.monto_pago = monto_pago
-                    st.success("Orden registrada. Aplicala a una o más facturas abajo para que impacte en Balance.")
+                    for m in mapeos:
+                        crear_mapping(m["invoice_id"], payment_id, m["amount"])
+                    st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
                     st.rerun()
                 except Exception as e:
                     st.error(str(e))
+    else:
+        st.info("No hay facturas con saldo pendiente")
+
     st.markdown('</div>', unsafe_allow_html=True)
-
-    if st.session_state.get("ultimo_pago_id") and st.session_state.get("monto_pago", 0) > 0:
-        st.markdown("##### Aplicar pago a facturas")
-
-        payment = obtener_payment(st.session_state.ultimo_pago_id)
-        if payment:
-            monto_total = payment["amount"]
-            st.markdown(f'<div class="syna-alert">Este pago (${monto_total:,.2f}) todavía NO afecta el saldo hasta que lo apliques a una factura.</div>', unsafe_allow_html=True)
-
-            invoices = obtener_invoices()
-            pendientes = [inv for inv in invoices if inv["saldo"] > 0]
-
-            if pendientes:
-                # IMPORTANTE: estos widgets van FUERA de un st.form a propósito.
-                # Streamlit no re-renderiza el contenido de un form hasta el
-                # submit, así que un checkbox dentro de un form nunca revela
-                # un campo condicional (if sel: ...) en el mismo click: queda
-                # marcado pero el campo "Aplicar" no aparece hasta el próximo
-                # rerun. Con widgets sueltos, cada click sí dispara rerun.
-                mapeos = []
-                total_aplicado = 0
-                for inv in pendientes:
-                    c1, c2, c3 = st.columns([2, 1.3, 1.3])
-                    with c1:
-                        sel = st.checkbox(inv["invoice_number"], key=f"sel_{inv['id']}")
-                    with c2:
-                        st.write(f"Saldo: **${inv['saldo']:,.0f}**")
-                    with c3:
-                        if sel:
-                            app = st.number_input("Aplicar", min_value=0.0, max_value=inv["saldo"],
-                                                   step=100.0, key=f"app_{inv['id']}", format="%.2f")
-                            if app > 0:
-                                mapeos.append({"invoice_id": inv["id"], "amount": app})
-                                total_aplicado += app
-
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.metric("Monto de la orden", f"${monto_total:,.0f}")
-                with c2:
-                    st.metric("Total a aplicar", f"${total_aplicado:,.0f}")
-
-                if st.button("Confirmar aplicación", use_container_width=True, key="confirmar_matching"):
-                    if total_aplicado > monto_total:
-                        st.error("El total aplicado excede el monto de la orden")
-                    elif total_aplicado == 0:
-                        st.error("Aplicá el pago a al menos una factura")
-                    else:
-                        for m in mapeos:
-                            crear_mapping(m["invoice_id"], st.session_state.ultimo_pago_id, m["amount"])
-                        st.success(f"${total_aplicado:,.2f} aplicados. Balance actualizado.")
-                        del st.session_state.ultimo_pago_id
-                        del st.session_state.monto_pago
-                        for inv in pendientes:
-                            st.session_state.pop(f"sel_{inv['id']}", None)
-                            st.session_state.pop(f"app_{inv['id']}", None)
-                        st.rerun()
-            else:
-                st.info("No hay facturas con saldo pendiente para aplicar este pago.")
 
 
 # ============================================
@@ -751,10 +740,6 @@ def _tab_balance():
     st.markdown("#### Libro diario")
 
     if inv_filtradas or credits_filtrados or aplicados_filtrados:
-        html = '<table class="syna-table"><thead><tr>'
-        html += '<th>Fecha</th><th>Comprobante</th><th>Debe</th><th>Haber</th><th>Saldo acumulado</th>'
-        html += '</tr></thead><tbody>'
-
         movimientos = []
         for inv in inv_filtradas:
             movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"]))
@@ -765,21 +750,64 @@ def _tab_balance():
             etiqueta = f"{numero_pago} → {ap['invoice_number']}"
             movimientos.append((ap.get("payment_date") or "", "haber", etiqueta, ap["amount_applied"]))
 
+        # El saldo acumulado se calcula UNA VEZ en orden cronológico real
+        # (así tiene sentido contable) y queda fijo en cada fila; el
+        # usuario puede después ordenar la tabla por cualquier columna
+        # (clickeando el encabezado) sin que ese valor se recalcule.
         movimientos.sort(key=lambda m: m[0])
 
+        filas = []
         saldo = 0
         for fecha, tipo, numero, monto in movimientos:
-            html += f'<tr><td>{_fmt_fecha(fecha)}</td><td><strong>{numero}</strong></td>'
+            # 0.0 en vez de NaN a propósito: en esta versión de Streamlit,
+            # st.dataframe muestra el texto literal "None" para celdas NaN
+            # sin importar el format (probado con y sin Styler, con varios
+            # formatos incluyendo el default) - es una limitación del
+            # componente, no de este código. Con 0.0 + estilo "color:
+            # white" para esas celdas, la celda vacía queda visualmente en
+            # blanco en vez de mostrar "None".
             if tipo == "debe":
-                html += f'<td class="syna-debe">${monto:,.2f}</td><td></td>'
                 saldo += monto
+                debe, haber = monto, 0.0
             else:
-                html += f'<td></td><td class="syna-haber">${monto:,.2f}</td>'
                 saldo -= monto
-            html += f'<td>${saldo:,.2f}</td></tr>'
+                debe, haber = 0.0, monto
+            filas.append({
+                "Fecha": datetime.fromisoformat(fecha[:10]).date() if fecha else None,
+                "Comprobante": numero,
+                "Debe": debe,
+                "Haber": haber,
+                "Saldo acumulado": saldo,
+            })
 
-        html += '</tbody></table>'
-        st.markdown(html, unsafe_allow_html=True)
+        df_libro = pd.DataFrame(filas)
+
+        def _colorear_debe_haber(row):
+            estilos = [""] * len(row)
+            idx_debe = row.index.get_loc("Debe")
+            idx_haber = row.index.get_loc("Haber")
+            if row["Debe"] != 0:
+                estilos[idx_debe] = "background-color: #F0FDF4; color: #15803D; font-weight: 700;"
+            else:
+                estilos[idx_debe] = "color: white;"
+            if row["Haber"] != 0:
+                estilos[idx_haber] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 700;"
+            else:
+                estilos[idx_haber] = "color: white;"
+            return estilos
+
+        st.dataframe(
+            df_libro.style.apply(_colorear_debe_haber, axis=1),
+            column_config={
+                "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+                "Debe": st.column_config.NumberColumn("Debe", format="$ %,.2f"),
+                "Haber": st.column_config.NumberColumn("Haber", format="$ %,.2f"),
+                "Saldo acumulado": st.column_config.NumberColumn("Saldo acumulado", format="$ %,.2f"),
+            },
+            hide_index=True,
+            use_container_width=True,
+        )
+        st.caption("Hacé click en el encabezado de una columna para ordenar la tabla por ella.")
 
         if abs(saldo - saldo_view) > 0.01:
             st.warning(f"El saldo acumulado del libro diario (${saldo:,.2f}) no coincide con el total a pagar de arriba (${saldo_view:,.2f}). Puede deberse a un pago aplicado fuera del rango de fechas filtrado.")
