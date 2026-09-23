@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from io import BytesIO
 from syna_db import inicializar_db
-from syna_ui_v2 import pantalla_syna_admin_v2
+from syna_ui_v3 import pantalla_syna_admin_v3
 from syna_viewer_v2 import pantalla_syna_viewer_v2, pantalla_syna_con_autenticacion_v2
 
 # ============================================
@@ -1385,7 +1385,7 @@ elif pantalla_actual == "Proveedores":
 # ============================================
 elif pantalla_actual == "Cobranzas SYNA":
     inicializar_db()
-    pantalla_syna_admin_v2()
+    pantalla_syna_admin_v3()
 
 # ============================================
 # PANTALLA 6: POST EMISIÓN
