@@ -748,6 +748,7 @@ def _editar_nc(cr):
             fecha = st.date_input("Fecha", value=_fecha_a_date(cr["credit_date"]), format="DD/MM/YYYY")
 
         monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, value=float(cr["amount"]), format="%.2f")
+        vencimiento = st.date_input("Vencimiento (opcional)", value=_fecha_a_date(cr.get("due_date")), format="DD/MM/YYYY", key=f"vencimiento_editar_nc_{cr['id']}")
         utilizada = st.checkbox("Marcar como utilizada (informativo)", value=bool(cr.get("used")))
 
         billing_month = _selector_mes_facturacion(f"editar_nc_{cr['id']}", cr.get("billing_month"))
@@ -765,7 +766,8 @@ def _editar_nc(cr):
 
         if guardar:
             try:
-                actualizar_credit(cr["id"], numero, monto, fecha.isoformat(), utilizada, billing_month, categoria)
+                actualizar_credit(cr["id"], numero, monto, fecha.isoformat(), utilizada, billing_month, categoria,
+                                   due_date=vencimiento.isoformat() if vencimiento else "")
                 st.session_state.editando = None
                 st.success(f"{numero} actualizada.")
                 st.rerun()
@@ -892,6 +894,7 @@ def _form_nc():
             fecha_nc = st.date_input("Fecha", format="DD/MM/YYYY")
 
         monto_nc = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f")
+        vencimiento_nc = st.date_input("Vencimiento (opcional)", value=None, format="DD/MM/YYYY", key="vencimiento_nc")
         utilizada = st.checkbox("Marcar como utilizada (informativo)")
 
         billing_month = _selector_mes_facturacion("nueva_nc")
@@ -908,7 +911,8 @@ def _form_nc():
                         credit_number=numero_nc, amount=monto_nc,
                         credit_date=fecha_nc.isoformat(), used=utilizada,
                         created_by="Dai",
-                        billing_month=billing_month, category=categoria
+                        billing_month=billing_month, category=categoria,
+                        due_date=vencimiento_nc.isoformat() if vencimiento_nc else ""
                     )
                     st.success(f"{numero_nc} registrada. Ya está restando en Balance.")
                     st.rerun()
@@ -1144,7 +1148,7 @@ def _tab_balance():
     with col3:
         estado = st.selectbox("Estado", ["Todas", "Pagadas", "Impagas", "Parciales"], key="balance_estado")
     if filtrar_por == "Fecha de vencimiento":
-        st.caption("Las notas de crédito no tienen fecha de vencimiento, así que este filtro no les aplica: siguen mostrándose todas.")
+        st.caption("Una NC sin vencimiento cargado queda afuera de este filtro (no hay fecha contra la cual compararla).")
 
     balance = calcular_balance_syna()
     # Defensivo: si alguna vez el dict viniera incompleto (versión vieja de
@@ -1159,10 +1163,13 @@ def _tab_balance():
     credits = obtener_credits()
 
     # El campo de fecha sobre el que se filtra depende de "Filtrar por": la
-    # fecha del comprobante (invoice_date) o la fecha de vencimiento
-    # (due_date). Las NC no tienen vencimiento, así que ese filtro no las
-    # afecta (se filtran solo por fecha de comprobante siempre).
+    # fecha del comprobante (invoice_date/credit_date) o la fecha de
+    # vencimiento (due_date, también disponible en NC). Una NC sin
+    # vencimiento cargado queda afuera del filtro por vencimiento (no hay
+    # fecha contra la cual comparar), igual que pasaría con una factura
+    # sin vencimiento.
     campo_fecha_fc = "due_date" if filtrar_por == "Fecha de vencimiento" else "invoice_date"
+    campo_fecha_nc = "due_date" if filtrar_por == "Fecha de vencimiento" else "credit_date"
 
     inv_filtradas = invoices
     if fecha_desde:
@@ -1173,16 +1180,11 @@ def _tab_balance():
         estado_map = {"Pagadas": "Pagada", "Impagas": "Impaga", "Parciales": "Parcialmente pagada"}
         inv_filtradas = [i for i in inv_filtradas if i["estado"] == estado_map.get(estado, "")]
 
-    # Las NC se filtran solo por fecha de comprobante (no tienen
-    # vencimiento ni "estado" de factura): así el filtro de período afecta
-    # a todo el libro diario por igual, salvo cuando se filtra por
-    # vencimiento, donde no les aplica.
     credits_filtrados = credits
-    if filtrar_por != "Fecha de vencimiento":
-        if fecha_desde:
-            credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] >= fecha_desde.isoformat()]
-        if fecha_hasta:
-            credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] <= fecha_hasta.isoformat()]
+    if fecha_desde:
+        credits_filtrados = [c for c in credits_filtrados if c.get(campo_fecha_nc) and c[campo_fecha_nc] >= fecha_desde.isoformat()]
+    if fecha_hasta:
+        credits_filtrados = [c for c in credits_filtrados if c.get(campo_fecha_nc) and c[campo_fecha_nc] <= fecha_hasta.isoformat()]
 
     hay_filtro_activo = bool(fecha_desde or fecha_hasta or estado != "Todas")
 
@@ -1276,8 +1278,8 @@ def _tab_balance():
             "Categoría": cr.get("category") or "—",
             "Monto": cr["amount"],
             "Fecha comprobante": _fmt_fecha(cr.get("credit_date")),
-            "Fecha vencimiento": "—",
-            "_venc_sort": "9999-99-99",
+            "Fecha vencimiento": _fmt_fecha(cr.get("due_date")) if cr.get("due_date") else "—",
+            "_venc_sort": cr.get("due_date") or "9999-99-99",
             "Estado": ("Disponible" if cr["saldo"] >= cr["amount"] - 0.01 else "Parcial") if pendiente else "Aplicada",
         }
 
