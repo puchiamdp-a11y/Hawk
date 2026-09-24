@@ -4,3 +4,12 @@ __pycache__/
 .streamlit/
 .env
 *.xlsx
+
+# La base de datos de producción NUNCA debe versionarse: si vive en git,
+# cada push de código la resetea a la última copia comiteada y borra los
+# datos reales cargados en el servidor entre deploys. Ver backups/ para
+# resguardos exportados manualmente.
+syna_tracking.db
+*.db-journal
+*.db-wal
+*.db-shm

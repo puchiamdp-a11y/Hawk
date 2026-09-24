@@ -21,7 +21,7 @@ from syna_db import (
     crear_mapping, obtener_mappings_aplicados,
     crear_credit, obtener_credits, eliminar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
-    obtener_audit_log
+    obtener_audit_log, exportar_backup_excel
 )
 
 CONTAINER_KEY = "syna_root"
@@ -299,6 +299,20 @@ def pantalla_syna_admin():
             <p>Gestión de comprobantes, pagos y balance del cliente VIP</p>
         </div>
         """, unsafe_allow_html=True)
+
+        col_backup1, col_backup2 = st.columns([4, 1.4])
+        with col_backup2:
+            try:
+                st.download_button(
+                    "💾 Descargar backup",
+                    data=exportar_backup_excel(),
+                    file_name=f"backup_syna_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    help="Descarga un Excel con todas las facturas, NC, órdenes de pago y aplicaciones registradas hasta ahora."
+                )
+            except Exception as e:
+                st.caption(f"Backup no disponible: {e}")
 
         tab_comprobantes, tab_balance, tab_historico = st.tabs([
             "Comprobantes", "Balance", "Histórico"

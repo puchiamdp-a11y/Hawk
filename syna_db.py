@@ -5,8 +5,11 @@ Gestión de base de datos SQLite para tracking de facturas y pagos SYNA
 
 import sqlite3
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
+from io import BytesIO
+import pandas as pd
 
 DB_PATH = Path(__file__).parent / "syna_tracking.db"
 
@@ -545,6 +548,50 @@ def obtener_audit_log():
 
     conn.close()
     return logs
+
+
+# ============================================
+# BACKUP / EXPORTACIÓN
+# ============================================
+
+def exportar_backup_excel():
+    """Genera un backup completo en Excel (todas las tablas, una hoja por
+    tabla) en memoria, para descargar desde la UI. No depende del estado
+    del servidor: el usuario se lleva una copia propia de los datos."""
+    conn = get_connection()
+
+    hojas = {
+        "Facturas": "SELECT * FROM syna_invoices ORDER BY id",
+        "Notas de Credito": "SELECT * FROM syna_credits ORDER BY id",
+        "Ordenes de Pago": "SELECT * FROM syna_payments ORDER BY id",
+        "Aplicaciones (FC-OP)": "SELECT * FROM syna_invoice_payment_mapping ORDER BY id",
+        "Auditoria": "SELECT * FROM syna_audit_log ORDER BY id",
+    }
+
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        for nombre_hoja, query in hojas.items():
+            df = pd.read_sql_query(query, conn)
+            df.to_excel(writer, sheet_name=nombre_hoja, index=False)
+
+    conn.close()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def crear_backup_archivo(destino_dir=None):
+    """Copia el archivo .db completo a una carpeta de backups locales con
+    timestamp en el nombre. Complementa exportar_backup_excel(): esta
+    copia preserva el formato SQLite tal cual para una restauración 1:1."""
+    if destino_dir is None:
+        destino_dir = DB_PATH.parent / "backups"
+    destino_dir = Path(destino_dir)
+    destino_dir.mkdir(exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    destino = destino_dir / f"syna_tracking_{timestamp}.db"
+    shutil.copy2(DB_PATH, destino)
+    return destino
 
 
 # ============================================
