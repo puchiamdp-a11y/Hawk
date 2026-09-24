@@ -61,13 +61,41 @@ def _obtener_pool():
             1, 10,
             _obtener_database_url(),
             cursor_factory=psycopg2.extras.RealDictCursor,
+            # Neon (tier gratuito) suspende el servidor tras un rato sin
+            # actividad y cierra las conexiones de su lado sin avisarle al
+            # pool. Sin un timeout, una conexión así queda "colgada" varios
+            # segundos antes de fallar en vez de fallar rápido para poder
+            # descartarla y reintentar con una nueva.
+            connect_timeout=10,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=3,
         )
     return _pool
 
 
 def get_connection():
-    """Obtiene una conexión del pool a la base Postgres externa."""
-    return _obtener_pool().getconn()
+    """Obtiene una conexión sana del pool a la base Postgres externa.
+
+    El pool no sabe si una conexión sigue viva del otro lado (Neon la
+    puede haber cerrado por inactividad) hasta que se intenta usar. Antes
+    de entregarla se hace un chequeo liviano; si está muerta, se descarta
+    (no se devuelve al pool) y se reintenta con una conexión nueva, en vez
+    de que quien llama se quede esperando un timeout largo a mitad de una
+    consulta real."""
+    pool = _obtener_pool()
+    ultimo_error = None
+    for _ in range(2):
+        conn = pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            return conn
+        except psycopg2.OperationalError as e:
+            ultimo_error = e
+            pool.putconn(conn, close=True)
+    raise ultimo_error
 
 
 def _liberar_conexion(conn):
