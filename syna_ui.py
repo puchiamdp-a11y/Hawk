@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
     crear_invoice, obtener_invoices, eliminar_invoice, actualizar_invoice,
     crear_payment, obtener_payments, obtener_payment, eliminar_payment, actualizar_payment,
-    crear_mapping, obtener_mappings_aplicados, crear_credit_mapping,
+    crear_mapping, obtener_mappings_aplicados, crear_invoice_credit_mapping,
     crear_credit, obtener_credits, eliminar_credit, actualizar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log, exportar_backup_excel
@@ -990,85 +990,116 @@ def _form_odp():
 
         if seleccionadas_display and monto_pago > 0:
             seleccionados = [opciones_map[d] for d in seleccionadas_display]
+            fc_seleccionadas = [d for d in seleccionados if d["tipo"] == "FC"]
+            nc_seleccionadas = [d for d in seleccionados if d["tipo"] == "NC"]
 
-            # Calcular saldo total de documentos seleccionados
-            saldo_total_docs = sum(doc["saldo"] for doc in seleccionados)
+            if nc_seleccionadas and not fc_seleccionadas:
+                st.error("Para aplicar una Nota de Crédito seleccioná también al menos una factura: la NC se aplica directamente contra la factura, no contra la orden de pago.")
+            else:
+                # Cascada en dos pasadas: primero se netean las NC contra
+                # las facturas seleccionadas (como si fueran otro medio
+                # de pago), y recién sobre lo que queda pendiente después
+                # de eso se aplica el efectivo de la ODP. Antes se
+                # repartía el monto de la ODP en proporción al saldo de
+                # CADA documento (FC y NC por igual), lo que dejaba las
+                # facturas en "Parcial" aunque el neto (FC - NC) coincidiera
+                # exacto con la ODP: la NC "competía" por una porción del
+                # pago en vez de descontarse primero.
+                saldo_restante_fc = {fc["id"]: fc["saldo"] for fc in fc_seleccionadas}
+                aplicaciones_nc = []
+                for nc in nc_seleccionadas:
+                    nc_restante = nc["saldo"]
+                    for fc in fc_seleccionadas:
+                        if nc_restante <= 0:
+                            break
+                        disponible = saldo_restante_fc[fc["id"]]
+                        if disponible <= 0:
+                            continue
+                        aplicar = round(min(nc_restante, disponible), 2)
+                        if aplicar > 0:
+                            aplicaciones_nc.append({"fc_id": fc["id"], "fc_numero": fc["numero"], "nc_id": nc["id"], "nc_numero": nc["numero"], "monto": aplicar})
+                            saldo_restante_fc[fc["id"]] -= aplicar
+                            nc_restante -= aplicar
 
-            # Calcular distribución proporcional del monto de la ODP
-            st.write("")
-            st.markdown("**Distribución automática del pago:**")
+                aplicaciones_efectivo = []
+                efectivo_restante = monto_pago
+                for fc in fc_seleccionadas:
+                    if efectivo_restante <= 0:
+                        break
+                    disponible = saldo_restante_fc[fc["id"]]
+                    if disponible <= 0:
+                        continue
+                    aplicar = round(min(efectivo_restante, disponible), 2)
+                    if aplicar > 0:
+                        aplicaciones_efectivo.append({"fc_id": fc["id"], "fc_numero": fc["numero"], "monto": aplicar})
+                        saldo_restante_fc[fc["id"]] -= aplicar
+                        efectivo_restante -= aplicar
 
-            mapeos = []
-            for doc in seleccionados:
-                proporcion = doc["saldo"] / saldo_total_docs if saldo_total_docs > 0 else 0
-                # Redondeado a centavos: sin esto, la división de floats
-                # deja restos como 26940.603312604395 que después fallan
-                # la comparación "> saldo" en la DB por un margen mínimo.
-                monto_asignado = round(min(proporcion * monto_pago, doc["saldo"]), 2)
+                total_nc_aplicada = sum(a["monto"] for a in aplicaciones_nc)
+                total_efectivo_aplicado = sum(a["monto"] for a in aplicaciones_efectivo)
 
-                # Colores diferenciados por tipo
-                if doc["tipo"] == "FC":
-                    bg_color = "#E8F5E9"
-                    text_color = "#2E7D32"
-                    emoji = "📄"
-                    tipo_txt = "Factura"
-                else:
-                    bg_color = "#FFF3E0"
-                    text_color = "#E65100"
-                    emoji = "💳"
-                    tipo_txt = "Nota de Crédito"
+                st.write("")
+                st.markdown("**Distribución automática del pago:**")
 
-                col1, col2, col3 = st.columns([2, 1.2, 1.2])
-                with col1:
-                    st.markdown(f'<div style="background-color: {bg_color}; padding: 8px; border-radius: 4px; color: {text_color};"><b>{emoji} {tipo_txt}</b><br/>{doc["numero"]}</div>', unsafe_allow_html=True)
-                with col2:
-                    st.write(f"Saldo: ${doc['saldo']:,.0f}")
-                with col3:
-                    st.write(f"**${monto_asignado:,.0f}**")
+                for fc in fc_seleccionadas:
+                    nc_de_esta_fc = sum(a["monto"] for a in aplicaciones_nc if a["fc_id"] == fc["id"])
+                    ef_de_esta_fc = sum(a["monto"] for a in aplicaciones_efectivo if a["fc_id"] == fc["id"])
+                    saldo_final = round(fc["saldo"] - nc_de_esta_fc - ef_de_esta_fc, 2)
+                    col1, col2, col3, col4 = st.columns([2, 1.3, 1.6, 1.3])
+                    with col1:
+                        st.markdown(f'<div style="background-color: #E8F5E9; padding: 8px; border-radius: 4px; color: #2E7D32;"><b>📄 Factura</b><br/>{fc["numero"]}</div>', unsafe_allow_html=True)
+                    with col2:
+                        st.write(f"Saldo: ${fc['saldo']:,.0f}")
+                    with col3:
+                        st.write(f"NC ${nc_de_esta_fc:,.0f} + Efectivo ${ef_de_esta_fc:,.0f}")
+                    with col4:
+                        st.markdown("✅ **Saldada**" if saldo_final <= 0.01 else f"⚠️ Queda ${saldo_final:,.0f}")
 
-                mapeos.append({
-                    "tipo": doc["tipo"],
-                    "id": doc["id"],
-                    "amount": monto_asignado
-                })
+                for nc in nc_seleccionadas:
+                    aplicado_de_esta_nc = sum(a["monto"] for a in aplicaciones_nc if a["nc_id"] == nc["id"])
+                    col1, col2, col3 = st.columns([2, 1.3, 1.3])
+                    with col1:
+                        st.markdown(f'<div style="background-color: #FFF3E0; padding: 8px; border-radius: 4px; color: #E65100;"><b>💳 Nota de Crédito</b><br/>{nc["numero"]}</div>', unsafe_allow_html=True)
+                    with col2:
+                        st.write(f"Saldo: ${nc['saldo']:,.0f}")
+                    with col3:
+                        st.write(f"Aplicado: ${aplicado_de_esta_nc:,.0f}")
 
-            total_aplicado = sum(m["amount"] for m in mapeos)
+                st.markdown("---")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("Monto de ODP", f"${monto_pago:,.0f}")
+                with c2:
+                    st.metric("Efectivo aplicado", f"${total_efectivo_aplicado:,.0f}")
+                with c3:
+                    st.metric("Sin aplicar", f"${monto_pago - total_efectivo_aplicado:,.0f}")
+                if total_nc_aplicada > 0:
+                    st.caption(f"Además, ${total_nc_aplicada:,.0f} cubiertos con las NC seleccionadas (no sale del monto de la ODP, se descuenta directo de las facturas).")
 
-            st.markdown("---")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.metric("Monto de ODP", f"${monto_pago:,.0f}")
-            with c2:
-                st.metric("Total a aplicar", f"${total_aplicado:,.0f}")
-            with c3:
-                diferencia = monto_pago - total_aplicado
-                st.metric("Sin aplicar", f"${diferencia:,.0f}")
-
-            if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
-                if not numero_odp.strip():
-                    st.error("Ingresa un número de ODP")
-                elif numero_odp.strip().lower() in numeros_odp_existentes:
-                    st.error(f"⚠️ El número {numero_odp} ya fue utilizado. Elegí otro número.")
-                elif monto_pago <= 0:
-                    st.error("El monto debe ser mayor a 0")
-                elif total_aplicado == 0:
-                    st.error("Selecciona al menos un documento para aplicar el pago")
-                else:
-                    try:
-                        payment_id = crear_payment(
-                            payment_date=fecha_pago.isoformat(), amount=monto_pago,
-                            payer=pagador, description=descripcion, created_by="Dai",
-                            payment_number=numero_odp
-                        )
-                        for m in mapeos:
-                            if m["tipo"] == "FC":
-                                crear_mapping(m["id"], payment_id, m["amount"])
-                            else:
-                                crear_credit_mapping(m["id"], payment_id, m["amount"])
-                        st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(str(e))
+                if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
+                    if not numero_odp.strip():
+                        st.error("Ingresa un número de ODP")
+                    elif numero_odp.strip().lower() in numeros_odp_existentes:
+                        st.error(f"⚠️ El número {numero_odp} ya fue utilizado. Elegí otro número.")
+                    elif monto_pago <= 0:
+                        st.error("El monto debe ser mayor a 0")
+                    elif total_efectivo_aplicado == 0 and total_nc_aplicada == 0:
+                        st.error("Selecciona al menos un documento para aplicar el pago")
+                    else:
+                        try:
+                            payment_id = crear_payment(
+                                payment_date=fecha_pago.isoformat(), amount=monto_pago,
+                                payer=pagador, description=descripcion, created_by="Dai",
+                                payment_number=numero_odp
+                            )
+                            for a in aplicaciones_nc:
+                                crear_invoice_credit_mapping(a["fc_id"], a["nc_id"], a["monto"], payment_id=payment_id)
+                            for a in aplicaciones_efectivo:
+                                crear_mapping(a["fc_id"], payment_id, a["monto"])
+                            st.success(f"Orden registrada: ${total_efectivo_aplicado:,.2f} en efectivo + ${total_nc_aplicada:,.2f} en NC aplicados.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(str(e))
         elif not todos_pendientes:
             st.info("No hay documentos con saldo pendiente")
         else:
@@ -1133,7 +1164,9 @@ def _tab_balance():
     # general: si hay un filtro activo, se recalculan sobre inv_filtradas
     # / credits_filtrados en vez de usar el balance global.
     total_facturado_view = sum(i["amount"] for i in inv_filtradas)
-    total_pagado_view = sum(i["amount"] - i["saldo"] for i in inv_filtradas)
+    # Solo el efectivo real (vía ODP): la NC aplicada a la factura ya se
+    # cuenta en total_nc_view, sumarla acá también la restaría dos veces.
+    total_pagado_view = sum(i["efectivo_aplicado"] for i in inv_filtradas)
     total_nc_view = sum(c["amount"] for c in credits_filtrados)
     saldo_view = total_facturado_view - total_nc_view - total_pagado_view
 

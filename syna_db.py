@@ -86,12 +86,15 @@ def inicializar_db():
     )
     """)
 
-    # TABLA 3b: Mapping entre NC y pagos (separada de la de facturas
-    # porque invoice_id sólo puede referenciar syna_invoices; aplicar un
-    # pago a una NC usando la misma tabla causaba que se calculara el
-    # saldo de una factura ajena con el mismo id numérico, o 0 si no
-    # existía ninguna con ese id - de ahí el bug "excede saldo pendiente (0)"
-    # al aplicar una ODP a una NC).
+    # TABLA 3b (DEPRECADA, se mantiene solo para no perder datos ya
+    # guardados con este modelo): mapping directo NC-pago. Reemplazada
+    # por syna_invoice_credit_mapping más abajo: aplicar una NC contra
+    # una ODP sin vincularla a una factura específica hacía que el
+    # sistema repartiera el monto de la ODP en partes iguales entre
+    # TODAS las facturas y NC seleccionadas, en vez de usar la NC para
+    # netear contra la factura primero - por eso una ODP que cubría el
+    # neto exacto (facturas menos NC) dejaba las facturas en "Parcial"
+    # en lugar de saldarlas del todo.
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_credit_payment_mapping (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,6 +102,28 @@ def inicializar_db():
         payment_id INTEGER NOT NULL,
         amount_applied REAL NOT NULL,
         created_at TEXT NOT NULL,
+        FOREIGN KEY (credit_id) REFERENCES syna_credits(id),
+        FOREIGN KEY (payment_id) REFERENCES syna_payments(id)
+    )
+    """)
+
+    # TABLA 3c: mapping NC-factura (reemplaza el uso de la 3b). Una NC
+    # aplicada acá reduce directamente el saldo de esa factura, igual
+    # que el efectivo de una ODP - así "facturado - NC aplicada -
+    # efectivo aplicado = saldo" da 0 cuando corresponde, en vez de
+    # tratar la NC como si "compitiera" por una porción del monto de la
+    # ODP igual que una factura. payment_id es solo trazabilidad (en
+    # qué ODP se hizo esta aplicación), el monto de la NC no sale del
+    # monto de esa ODP.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS syna_invoice_credit_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_id INTEGER NOT NULL,
+        credit_id INTEGER NOT NULL,
+        payment_id INTEGER,
+        amount_applied REAL NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (invoice_id) REFERENCES syna_invoices(id),
         FOREIGN KEY (credit_id) REFERENCES syna_credits(id),
         FOREIGN KEY (payment_id) REFERENCES syna_payments(id)
     )
@@ -195,9 +220,11 @@ def obtener_invoices(filtro_estado=None):
     invoices = []
     for row in cursor.fetchall():
         invoice = dict(row)
-        # Calcular saldo
-        saldo = calcular_saldo_factura(invoice["id"])
+        efectivo_aplicado, nc_aplicada = calcular_aplicado_factura(invoice["id"])
+        saldo = invoice["amount"] - efectivo_aplicado - nc_aplicada
         invoice["saldo"] = saldo
+        invoice["efectivo_aplicado"] = efectivo_aplicado
+        invoice["nc_aplicada"] = nc_aplicada
         invoice["estado"] = determinar_estado_factura(invoice["amount"], saldo)
 
         # Filtrar por estado si se especifica
@@ -208,8 +235,12 @@ def obtener_invoices(filtro_estado=None):
     return invoices
 
 
-def calcular_saldo_factura(invoice_id):
-    """Calcula el saldo pendiente de una factura."""
+def calcular_aplicado_factura(invoice_id):
+    """Devuelve (efectivo_aplicado, nc_aplicada) por separado para una
+    factura. Separado de calcular_saldo_factura() porque el balance
+    general ya resta el total de NC aparte (total_nc): sumar ahí
+    también lo aplicado a facturas incluyendo NC duplicaría esa resta,
+    por eso el balance necesita poder tomar solo la parte en efectivo."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -218,13 +249,24 @@ def calcular_saldo_factura(invoice_id):
     FROM syna_invoice_payment_mapping
     WHERE invoice_id = ?
     """, (invoice_id,))
+    total_efectivo = cursor.fetchone()["total_applied"]
 
-    result = cursor.fetchone()
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount_applied), 0) as total_applied
+    FROM syna_invoice_credit_mapping
+    WHERE invoice_id = ?
+    """, (invoice_id,))
+    total_nc_aplicada = cursor.fetchone()["total_applied"]
+
     conn.close()
+    return total_efectivo, total_nc_aplicada
 
-    total_applied = result["total_applied"] if result else 0
 
-    # Obtener monto original
+def calcular_saldo_factura(invoice_id):
+    """Calcula el saldo pendiente de una factura: monto menos efectivo
+    aplicado (vía ODP) menos NC aplicada directamente a ella."""
+    total_efectivo, total_nc_aplicada = calcular_aplicado_factura(invoice_id)
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT amount FROM syna_invoices WHERE id = ?", (invoice_id,))
@@ -232,7 +274,7 @@ def calcular_saldo_factura(invoice_id):
     conn.close()
 
     if inv:
-        return inv["amount"] - total_applied
+        return inv["amount"] - total_efectivo - total_nc_aplicada
     return 0
 
 
@@ -247,19 +289,23 @@ def determinar_estado_factura(amount, saldo):
 
 
 def eliminar_invoice(invoice_id):
-    """Elimina una factura (si no tiene pagos aplicados)."""
+    """Elimina una factura (si no tiene pagos ni NC aplicados)."""
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Verificar si hay pagos asociados
     cursor.execute("""
     SELECT COUNT(*) as count FROM syna_invoice_payment_mapping WHERE invoice_id = ?
     """, (invoice_id,))
-
-    result = cursor.fetchone()
-    if result["count"] > 0:
+    if cursor.fetchone()["count"] > 0:
         conn.close()
         raise ValueError("No se puede eliminar factura con pagos asociados")
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE invoice_id = ?
+    """, (invoice_id,))
+    if cursor.fetchone()["count"] > 0:
+        conn.close()
+        raise ValueError("No se puede eliminar factura con notas de crédito aplicadas")
 
     cursor.execute("DELETE FROM syna_invoices WHERE id = ?", (invoice_id,))
     conn.commit()
@@ -437,9 +483,9 @@ def eliminar_mapping(mapping_id):
 
 
 def crear_credit_mapping(credit_id, payment_id, amount_applied):
-    """Crea un mapping entre NC y pago. Equivalente a crear_mapping() pero
-    para syna_credit_payment_mapping - ver el comentario en esa tabla
-    dentro de inicializar_db() para el porqué de la separación."""
+    """DEPRECADA: mapping directo NC-pago sin pasar por una factura. Se
+    mantiene solo por compatibilidad con datos ya guardados; el flujo
+    de ODP actual usa crear_invoice_credit_mapping()."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -453,6 +499,34 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
     INSERT INTO syna_credit_payment_mapping (credit_id, payment_id, amount_applied, created_at)
     VALUES (?, ?, ?, ?)
     """, (credit_id, payment_id, amount_applied, now))
+
+    conn.commit()
+    conn.close()
+
+
+def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_id=None):
+    """Aplica una NC directamente contra una factura: reduce el saldo de
+    esa factura igual que el efectivo de una ODP (ver calcular_saldo_factura).
+    payment_id es opcional y solo sirve de trazabilidad (en qué ODP se
+    hizo esta aplicación); el monto de la NC no sale del monto de esa ODP."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    saldo_factura = calcular_saldo_factura(invoice_id)
+    if amount_applied > saldo_factura:
+        conn.close()
+        raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la factura ({saldo_factura})")
+
+    saldo_credit = calcular_saldo_credit(credit_id)
+    if amount_applied > saldo_credit:
+        conn.close()
+        raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la NC ({saldo_credit})")
+
+    now = datetime.now().isoformat()
+    cursor.execute("""
+    INSERT INTO syna_invoice_credit_mapping (invoice_id, credit_id, payment_id, amount_applied, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    """, (invoice_id, credit_id, payment_id, amount_applied, now))
 
     conn.commit()
     conn.close()
@@ -500,25 +574,35 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
 
 
 def calcular_saldo_credit(credit_id):
-    """Calcula el saldo disponible de una NC (monto menos lo ya aplicado
-    a órdenes de pago). Reemplaza el cálculo viejo 'amount - used', que
-    restaba 0 o 1 (el booleano 'used') en vez del monto real aplicado."""
+    """Calcula el saldo disponible de una NC: monto menos lo ya aplicado
+    directamente a facturas (syna_invoice_credit_mapping, el modelo
+    actual) menos lo aplicado con el modelo viejo (syna_credit_payment_mapping,
+    deprecado pero sumado acá para no ignorar aplicaciones ya guardadas
+    con él). Reemplaza el cálculo original 'amount - used', que restaba
+    0 o 1 (el booleano 'used') en vez de un monto real."""
     conn = get_connection()
     cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount_applied), 0) as total_applied
+    FROM syna_invoice_credit_mapping
+    WHERE credit_id = ?
+    """, (credit_id,))
+    total_nueva = cursor.fetchone()["total_applied"]
 
     cursor.execute("""
     SELECT COALESCE(SUM(amount_applied), 0) as total_applied
     FROM syna_credit_payment_mapping
     WHERE credit_id = ?
     """, (credit_id,))
-    total_applied = cursor.fetchone()["total_applied"]
+    total_vieja = cursor.fetchone()["total_applied"]
 
     cursor.execute("SELECT amount FROM syna_credits WHERE id = ?", (credit_id,))
     cr = cursor.fetchone()
     conn.close()
 
     if cr:
-        return cr["amount"] - total_applied
+        return cr["amount"] - total_nueva - total_vieja
     return 0
 
 
@@ -556,9 +640,16 @@ def marcar_credit_usado(credit_id, usado=True):
 
 
 def eliminar_credit(credit_id):
-    """Elimina una NC (si no tiene pagos aplicados)."""
+    """Elimina una NC (si no tiene aplicaciones a facturas, ni legacy)."""
     conn = get_connection()
     cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE credit_id = ?
+    """, (credit_id,))
+    if cursor.fetchone()["count"] > 0:
+        conn.close()
+        raise ValueError("No se puede eliminar una NC aplicada a una factura")
 
     cursor.execute("""
     SELECT COUNT(*) as count FROM syna_credit_payment_mapping WHERE credit_id = ?
@@ -598,11 +689,14 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
 
 
 def eliminar_payment(payment_id):
-    """Elimina una orden de pago (y sus mappings asociados, tanto a facturas como a NC)."""
+    """Elimina una orden de pago y todo lo que se aplicó en su contexto:
+    efectivo a facturas, NC a facturas (modelo actual), y NC a la ODP
+    directamente (modelo legacy)."""
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = ?", (payment_id,))
+    cursor.execute("DELETE FROM syna_invoice_credit_mapping WHERE payment_id = ?", (payment_id,))
     cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE payment_id = ?", (payment_id,))
     cursor.execute("DELETE FROM syna_payments WHERE id = ?", (payment_id,))
     conn.commit()
@@ -668,11 +762,12 @@ def calcular_balance_syna():
     cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_invoice_payment_mapping")
     total_pagado_facturas = cursor.fetchone()["total"]
 
-    # Total aplicado a NC (para "pagos_sin_aplicar" nada más: una ODP
-    # vinculada a una NC ya está conciliada, aunque esa NC no pase por acá
-    # para el cálculo del saldo).
+    # Compatibilidad con datos guardados con el modelo viejo (NC aplicada
+    # directo contra una ODP, sin pasar por una factura - ver comentario
+    # en syna_credit_payment_mapping). El flujo actual ya no escribe acá,
+    # esto da 0 salvo que existan aplicaciones previas hechas así.
     cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_credit_payment_mapping")
-    total_pagado_nc = cursor.fetchone()["total"]
+    total_pagado_nc_legacy = cursor.fetchone()["total"]
 
     conn.close()
 
@@ -683,7 +778,7 @@ def calcular_balance_syna():
         "total_nc": total_nc,
         "total_ordenes_pago": total_ordenes_pago,
         "total_pagado": total_pagado_facturas,
-        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_facturas - total_pagado_nc,
+        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_facturas - total_pagado_nc_legacy,
         "saldo_pendiente": saldo_pendiente
     }
 
@@ -771,7 +866,8 @@ def exportar_backup_excel():
         "Notas de Credito": "SELECT * FROM syna_credits ORDER BY id",
         "Ordenes de Pago": "SELECT * FROM syna_payments ORDER BY id",
         "Aplicaciones (FC-OP)": "SELECT * FROM syna_invoice_payment_mapping ORDER BY id",
-        "Aplicaciones (NC-OP)": "SELECT * FROM syna_credit_payment_mapping ORDER BY id",
+        "Aplicaciones (NC-FC)": "SELECT * FROM syna_invoice_credit_mapping ORDER BY id",
+        "Aplicaciones (NC-OP legacy)": "SELECT * FROM syna_credit_payment_mapping ORDER BY id",
         "Auditoria": "SELECT * FROM syna_audit_log ORDER BY id",
     }
 
