@@ -152,6 +152,8 @@ def inicializar_db():
         cursor.execute("ALTER TABLE syna_credits ADD COLUMN billing_month TEXT")
     if "category" not in columnas_cred:
         cursor.execute("ALTER TABLE syna_credits ADD COLUMN category TEXT")
+    if "due_date" not in columnas_cred:
+        cursor.execute("ALTER TABLE syna_credits ADD COLUMN due_date TEXT")
 
     # TABLA 5: Auditoría
     cursor.execute("""
@@ -591,7 +593,7 @@ def eliminar_credit_mapping(mapping_id):
 # FUNCIONES PARA CREDITS
 # ============================================
 
-def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai", billing_month="", category=""):
+def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai", billing_month="", category="", due_date=""):
     """Crea una nota de crédito."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -599,9 +601,9 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
     try:
         now = datetime.now().isoformat()
         cursor.execute("""
-        INSERT INTO syna_credits (credit_number, amount, credit_date, used, created_at, created_by, billing_month, category)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (credit_number, amount, credit_date, 1 if used else 0, now, created_by, billing_month, category))
+        INSERT INTO syna_credits (credit_number, amount, credit_date, used, created_at, created_by, billing_month, category, due_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (credit_number, amount, credit_date, 1 if used else 0, now, created_by, billing_month, category, due_date))
 
         conn.commit()
         credit_id = cursor.lastrowid
@@ -658,7 +660,7 @@ def obtener_credits():
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, credit_number, amount, credit_date, used, created_at, created_by, billing_month, category
+    SELECT id, credit_number, amount, credit_date, used, created_at, created_by, billing_month, category, due_date
     FROM syna_credits
     ORDER BY created_at DESC
     """)
@@ -709,7 +711,7 @@ def eliminar_credit(credit_id):
     conn.close()
 
 
-def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False, billing_month="", category=""):
+def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False, billing_month="", category="", due_date=""):
     """Actualiza los datos de una NC existente."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -717,9 +719,9 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
     try:
         cursor.execute("""
         UPDATE syna_credits
-        SET credit_number = ?, amount = ?, credit_date = ?, used = ?, billing_month = ?, category = ?
+        SET credit_number = ?, amount = ?, credit_date = ?, used = ?, billing_month = ?, category = ?, due_date = ?
         WHERE id = ?
-        """, (credit_number, amount, credit_date, 1 if used else 0, billing_month, category, credit_id))
+        """, (credit_number, amount, credit_date, 1 if used else 0, billing_month, category, due_date, credit_id))
 
         conn.commit()
         registrar_auditoria(conn, "Dai", "credit_updated", {
