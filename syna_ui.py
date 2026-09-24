@@ -27,6 +27,16 @@ from syna_db import (
 CONTAINER_KEY = "syna_root"
 
 
+def _fmt_monto(valor, decimales=0):
+    """Formatea un monto con separador de miles '.' y decimal ',' (formato
+    local), en vez del '{:,}' de Python que da miles con ',' y decimal '.'
+    Se arma con el formato de Python y después se intercambian los
+    símbolos, en vez de armar el separador a mano, para no reimplementar
+    el redondeo y el padding de decimales."""
+    texto = f"{valor:,.{decimales}f}"
+    return texto.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def _fmt_fecha(fecha_iso):
     """Convierte 'YYYY-MM-DD' (o un datetime ISO) a 'DD/MM/AAAA'."""
     if not fecha_iso:
@@ -579,7 +589,7 @@ def _tab_comprobantes():
             "Tipo": etiqueta_tipo[fila["tipo"]],
             "Mes facturación": mes,
             "Categoría": categoria,
-            "Monto": fila["monto"],
+            "Monto": f"$ {_fmt_monto(fila['monto'], 2)}",
             "Fecha": _fecha_a_date(fila["fecha"]),
             "Estado": fila["estado_texto"],
         })
@@ -614,7 +624,7 @@ def _tab_comprobantes():
         selection_mode="single-row",
         key="tabla_comprobantes",
         column_config={
-            "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+            "Monto": st.column_config.TextColumn("Monto"),
             "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
         }
     )
@@ -988,7 +998,7 @@ def _form_odp():
         for doc in todos_pendientes:
             emoji = "📄" if doc['tipo'] == "FC" else "💳"
             tipo_label = "Factura" if doc['tipo'] == "FC" else "Nota de Crédito"
-            opciones_display.append(f"{emoji} [{tipo_label}] {doc['numero']} - Saldo: ${doc['saldo']:,.0f}")
+            opciones_display.append(f"{emoji} [{tipo_label}] {doc['numero']} - Saldo: ${_fmt_monto(doc['saldo'])}")
         opciones_map = {display: doc for display, doc in zip(opciones_display, todos_pendientes)}
 
         seleccionadas_display = st.multiselect(
@@ -1058,9 +1068,9 @@ def _form_odp():
                     with col1:
                         st.markdown(f'<div style="background-color: #E8F5E9; padding: 8px; border-radius: 4px; color: #2E7D32;"><b>📄 Factura</b><br/>{fc["numero"]}</div>', unsafe_allow_html=True)
                     with col2:
-                        st.write(f"Saldo: ${fc['saldo']:,.0f}")
+                        st.write(f"Saldo: ${_fmt_monto(fc['saldo'])}")
                     with col3:
-                        st.write(f"NC ${nc_de_esta_fc:,.0f} + Efectivo ${ef_de_esta_fc:,.0f}")
+                        st.write(f"NC ${_fmt_monto(nc_de_esta_fc)} + Efectivo ${_fmt_monto(ef_de_esta_fc)}")
                     with col4:
                         # Requiere que se haya aplicado algo (no solo que
                         # el saldo sea chico): una factura seleccionada
@@ -1068,7 +1078,7 @@ def _form_odp():
                         # antes en la cascada) no debe leerse "Saldada".
                         aplicado_a_esta_fc = nc_de_esta_fc + ef_de_esta_fc
                         saldada = aplicado_a_esta_fc > 0 and saldo_final <= TOLERANCIA_SALDO
-                        st.markdown("✅ **Saldada**" if saldada else f"⚠️ Queda ${saldo_final:,.0f}")
+                        st.markdown("✅ **Saldada**" if saldada else f"⚠️ Queda ${_fmt_monto(saldo_final)}")
 
                 for nc in nc_seleccionadas:
                     aplicado_de_esta_nc = sum(a["monto"] for a in aplicaciones_nc if a["nc_id"] == nc["id"])
@@ -1076,20 +1086,20 @@ def _form_odp():
                     with col1:
                         st.markdown(f'<div style="background-color: #FFF3E0; padding: 8px; border-radius: 4px; color: #E65100;"><b>💳 Nota de Crédito</b><br/>{nc["numero"]}</div>', unsafe_allow_html=True)
                     with col2:
-                        st.write(f"Saldo: ${nc['saldo']:,.0f}")
+                        st.write(f"Saldo: ${_fmt_monto(nc['saldo'])}")
                     with col3:
-                        st.write(f"Aplicado: ${aplicado_de_esta_nc:,.0f}")
+                        st.write(f"Aplicado: ${_fmt_monto(aplicado_de_esta_nc)}")
 
                 st.markdown("---")
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    st.metric("Monto de ODP", f"${monto_pago:,.0f}")
+                    st.metric("Monto de ODP", f"${_fmt_monto(monto_pago)}")
                 with c2:
-                    st.metric("Efectivo aplicado", f"${total_efectivo_aplicado:,.0f}")
+                    st.metric("Efectivo aplicado", f"${_fmt_monto(total_efectivo_aplicado)}")
                 with c3:
-                    st.metric("Sin aplicar", f"${monto_pago - total_efectivo_aplicado:,.0f}")
+                    st.metric("Sin aplicar", f"${_fmt_monto(monto_pago - total_efectivo_aplicado)}")
                 if total_nc_aplicada > 0:
-                    st.caption(f"Además, ${total_nc_aplicada:,.0f} cubiertos con las NC seleccionadas (no sale del monto de la ODP, se descuenta directo de las facturas).")
+                    st.caption(f"Además, ${_fmt_monto(total_nc_aplicada)} cubiertos con las NC seleccionadas (no sale del monto de la ODP, se descuenta directo de las facturas).")
 
                 if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
                     if not numero_odp.strip():
@@ -1111,7 +1121,7 @@ def _form_odp():
                                 crear_invoice_credit_mapping(a["fc_id"], a["nc_id"], a["monto"], payment_id=payment_id)
                             for a in aplicaciones_efectivo:
                                 crear_mapping(a["fc_id"], payment_id, a["monto"])
-                            st.success(f"Orden registrada: ${total_efectivo_aplicado:,.2f} en efectivo + ${total_nc_aplicada:,.2f} en NC aplicados.")
+                            st.success(f"Orden registrada: ${_fmt_monto(total_efectivo_aplicado, 2)} en efectivo + ${_fmt_monto(total_nc_aplicada, 2)} en NC aplicados.")
                             st.rerun()
                         except Exception as e:
                             st.error(str(e))
@@ -1213,7 +1223,7 @@ def _tab_balance():
     color_class = "negative" if saldo_view > 0 else "positive"
     st.markdown(f"""<div class="syna-card syna-card-total">
         <div class="syna-card-label">Pendiente a abonar por SYNA (FC sin abonar − NC disponibles)</div>
-        <div class="syna-card-value-big {color_class}">${saldo_view:,.0f}</div>
+        <div class="syna-card-value-big {color_class}">${_fmt_monto(saldo_view)}</div>
     </div>""", unsafe_allow_html=True)
 
     st.caption("Detalle de cómo se compone ese número:")
@@ -1222,22 +1232,22 @@ def _tab_balance():
     with col1:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">Total facturado (bruto)</div>
-            <div class="syna-card-value neutral">${total_facturado_view:,.0f}</div>
+            <div class="syna-card-value neutral">${_fmt_monto(total_facturado_view)}</div>
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">FC sin abonar (saldo pendiente)</div>
-            <div class="syna-card-value positive">${total_fc_pendiente_view:,.0f}</div>
+            <div class="syna-card-value positive">${_fmt_monto(total_fc_pendiente_view)}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">NC disponible (sin aplicar todavía)</div>
-            <div class="syna-card-value neutral">${total_nc_disponible_view:,.0f}</div>
+            <div class="syna-card-value neutral">${_fmt_monto(total_nc_disponible_view)}</div>
         </div>""", unsafe_allow_html=True)
     st.caption("Una NC recién cargada no reduce el pendiente hasta que se aplica a una factura (al registrar una ODP en la pestaña Comprobantes). Mientras tanto queda acá como crédito disponible.")
 
     if balance["pagos_sin_aplicar"] > 0:
-        st.markdown(f'<div class="syna-alert">Hay ${balance["pagos_sin_aplicar"]:,.2f} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="syna-alert">Hay ${_fmt_monto(balance["pagos_sin_aplicar"], 2)} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
 
     # Vista de triage en vez de un libro contable cronológico: separa lo
     # que necesita atención (saldo pendiente) de lo que ya está resuelto,
@@ -1264,7 +1274,7 @@ def _tab_balance():
             "Comprobante": inv["invoice_number"], "Tipo": "Factura",
             "Mes facturación": _fmt_mes_facturacion(inv.get("billing_month")),
             "Categoría": inv.get("category") or "—",
-            "Monto": inv["amount"],
+            "Monto": f"$ {_fmt_monto(inv['amount'], 2)}",
             "Fecha comprobante": _fmt_fecha(inv.get("invoice_date")),
             "Fecha vencimiento": _fmt_fecha(inv.get("due_date")) if inv.get("due_date") else "—",
             "_venc_sort": inv.get("due_date") or "9999-99-99",
@@ -1276,7 +1286,7 @@ def _tab_balance():
             "Comprobante": cr["credit_number"], "Tipo": "Nota de Crédito",
             "Mes facturación": _fmt_mes_facturacion(cr.get("billing_month")),
             "Categoría": cr.get("category") or "—",
-            "Monto": cr["amount"],
+            "Monto": f"$ {_fmt_monto(cr['amount'], 2)}",
             "Fecha comprobante": _fmt_fecha(cr.get("credit_date")),
             "Fecha vencimiento": _fmt_fecha(cr.get("due_date")) if cr.get("due_date") else "—",
             "_venc_sort": cr.get("due_date") or "9999-99-99",
@@ -1302,7 +1312,7 @@ def _tab_balance():
         st.dataframe(
             df_pend.style.apply(_colorear_estado_triage, axis=1),
             column_config={
-                "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+                "Monto": st.column_config.TextColumn("Monto"),
             },
             hide_index=True,
             use_container_width=True,
@@ -1317,7 +1327,7 @@ def _tab_balance():
             st.dataframe(
                 df_ok.style.apply(_colorear_estado_triage, axis=1),
                 column_config={
-                    "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+                    "Monto": st.column_config.TextColumn("Monto"),
                 },
                 hide_index=True,
                 use_container_width=True,
@@ -1334,7 +1344,7 @@ def _tab_balance():
             st.markdown(f"""
             <div class="syna-card" style="margin-bottom:8px;">
                 <strong style="color:#B91C1C;">{v['invoice_number']}</strong>
-                <span style="color:var(--text-body);"> · vence {_fmt_fecha(v['due_date'])} · saldo ${v['saldo']:,.2f}</span>
+                <span style="color:var(--text-body);"> · vence {_fmt_fecha(v['due_date'])} · saldo ${_fmt_monto(v['saldo'], 2)}</span>
             </div>
             """, unsafe_allow_html=True)
     else:
