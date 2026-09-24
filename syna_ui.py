@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
     crear_invoice, obtener_invoices, eliminar_invoice, actualizar_invoice,
     crear_payment, obtener_payments, obtener_payment, eliminar_payment, actualizar_payment,
-    crear_mapping, obtener_mappings_aplicados,
+    crear_mapping, obtener_mappings_aplicados, crear_credit_mapping,
     crear_credit, obtener_credits, eliminar_credit, actualizar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log, exportar_backup_excel
@@ -516,8 +516,15 @@ def _tab_comprobantes():
             "detalle": inv,
         })
     for cr in credits[:5]:
-        estado = "Utilizada" if cr["used"] else "Disponible"
-        clase = "syna-badge-verde" if not cr["used"] else "syna-badge-ambar"
+        # Estado según el saldo real (lo aplicado a órdenes de pago), no
+        # el campo manual 'used' - antes decía "Disponible" aunque la NC
+        # ya estuviera completamente aplicada a una ODP.
+        if cr["saldo"] <= 0:
+            estado, clase = "Aplicada", "syna-badge-verde"
+        elif cr["saldo"] < cr["amount"]:
+            estado, clase = "Parcial", "syna-badge-ambar"
+        else:
+            estado, clase = "Disponible", "syna-badge-verde"
         filas.append({
             "tipo": "NC", "id": cr["id"], "numero": cr["credit_number"],
             "monto": cr["amount"], "fecha": cr["credit_date"],
@@ -562,7 +569,7 @@ def _tab_comprobantes():
         estilos = [""] * len(row)
         idx_estado = row.index.get_loc("Estado")
         estado = row["Estado"]
-        if estado in ("Pagada", "Disponible", "Registrada"):
+        if estado in ("Pagada", "Disponible", "Registrada", "Aplicada"):
             estilos[idx_estado] = "background-color: #F0FDF4; color: #15803D; font-weight: 600;"
         elif estado == "Impaga":
             estilos[idx_estado] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 600;"
@@ -924,7 +931,7 @@ def _form_odp():
     credits = obtener_credits()
 
     pendientes_fc = [inv for inv in invoices if inv["saldo"] > 0]
-    pendientes_nc = [cred for cred in credits if cred["amount"] - cred.get("used", 0) > 0]
+    pendientes_nc = [cred for cred in credits if cred["saldo"] > 0]
 
     # Combinar en lista única con tipo para identificarlos
     todos_pendientes = []
@@ -937,12 +944,11 @@ def _form_odp():
             "data": inv
         })
     for cred in pendientes_nc:
-        saldo_nc = cred["amount"] - cred.get("used", 0)
         todos_pendientes.append({
             "tipo": "NC",
             "id": cred["id"],
             "numero": cred["credit_number"],
-            "saldo": saldo_nc,
+            "saldo": cred["saldo"],
             "data": cred
         })
 
@@ -977,7 +983,10 @@ def _form_odp():
             mapeos = []
             for doc in seleccionados:
                 proporcion = doc["saldo"] / saldo_total_docs if saldo_total_docs > 0 else 0
-                monto_asignado = min(proporcion * monto_pago, doc["saldo"])
+                # Redondeado a centavos: sin esto, la división de floats
+                # deja restos como 26940.603312604395 que después fallan
+                # la comparación "> saldo" en la DB por un margen mínimo.
+                monto_asignado = round(min(proporcion * monto_pago, doc["saldo"]), 2)
 
                 # Colores diferenciados por tipo
                 if doc["tipo"] == "FC":
@@ -1034,7 +1043,10 @@ def _form_odp():
                             payment_number=numero_odp
                         )
                         for m in mapeos:
-                            crear_mapping(m["id"], payment_id, m["amount"])
+                            if m["tipo"] == "FC":
+                                crear_mapping(m["id"], payment_id, m["amount"])
+                            else:
+                                crear_credit_mapping(m["id"], payment_id, m["amount"])
                         st.success(f"Orden registrada y ${total_aplicado:,.2f} aplicados. Balance actualizado.")
                         st.rerun()
                     except Exception as e:

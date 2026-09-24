@@ -86,6 +86,24 @@ def inicializar_db():
     )
     """)
 
+    # TABLA 3b: Mapping entre NC y pagos (separada de la de facturas
+    # porque invoice_id sólo puede referenciar syna_invoices; aplicar un
+    # pago a una NC usando la misma tabla causaba que se calculara el
+    # saldo de una factura ajena con el mismo id numérico, o 0 si no
+    # existía ninguna con ese id - de ahí el bug "excede saldo pendiente (0)"
+    # al aplicar una ODP a una NC).
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS syna_credit_payment_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        credit_id INTEGER NOT NULL,
+        payment_id INTEGER NOT NULL,
+        amount_applied REAL NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (credit_id) REFERENCES syna_credits(id),
+        FOREIGN KEY (payment_id) REFERENCES syna_payments(id)
+    )
+    """)
+
     # TABLA 4: Notas de crédito
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_credits (
@@ -377,10 +395,13 @@ def obtener_mappings_por_payment(payment_id):
 
 
 def obtener_mappings_aplicados():
-    """Todos los pagos aplicados a facturas, con la fecha y el número del
-    pago y de la factura correspondiente. Para el libro diario: sin esto,
-    el saldo acumulado del libro diario no incluye las órdenes de pago y
-    no coincide con el saldo pendiente real (que sí las resta)."""
+    """Todos los pagos aplicados a facturas Y a NC, con la fecha y el
+    número del pago y del comprobante correspondiente. Para el libro
+    diario: sin esto, el saldo acumulado del libro diario no incluye las
+    órdenes de pago y no coincide con el saldo pendiente real (que sí
+    las resta). 'invoice_number' se reusa como nombre de columna para
+    ambos casos (factura o NC) porque la UI del libro diario ya lo lee
+    así, sin distinguir origen."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -390,6 +411,12 @@ def obtener_mappings_aplicados():
     FROM syna_invoice_payment_mapping m
     JOIN syna_payments p ON m.payment_id = p.id
     JOIN syna_invoices i ON m.invoice_id = i.id
+    UNION ALL
+    SELECT m.id, m.amount_applied, p.payment_date, p.payment_number, p.id as payment_id,
+           c.credit_number as invoice_number
+    FROM syna_credit_payment_mapping m
+    JOIN syna_payments p ON m.payment_id = p.id
+    JOIN syna_credits c ON m.credit_id = c.id
     """)
 
     aplicados = [dict(row) for row in cursor.fetchall()]
@@ -402,6 +429,37 @@ def eliminar_mapping(mapping_id):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE id = ?", (mapping_id,))
+    conn.commit()
+    conn.close()
+
+
+def crear_credit_mapping(credit_id, payment_id, amount_applied):
+    """Crea un mapping entre NC y pago. Equivalente a crear_mapping() pero
+    para syna_credit_payment_mapping - ver el comentario en esa tabla
+    dentro de inicializar_db() para el porqué de la separación."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    saldo = calcular_saldo_credit(credit_id)
+    if amount_applied > saldo:
+        conn.close()
+        raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo pendiente ({saldo})")
+
+    now = datetime.now().isoformat()
+    cursor.execute("""
+    INSERT INTO syna_credit_payment_mapping (credit_id, payment_id, amount_applied, created_at)
+    VALUES (?, ?, ?, ?)
+    """, (credit_id, payment_id, amount_applied, now))
+
+    conn.commit()
+    conn.close()
+
+
+def eliminar_credit_mapping(mapping_id):
+    """Elimina un mapping de NC."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE id = ?", (mapping_id,))
     conn.commit()
     conn.close()
 
@@ -438,8 +496,31 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
         conn.close()
 
 
+def calcular_saldo_credit(credit_id):
+    """Calcula el saldo disponible de una NC (monto menos lo ya aplicado
+    a órdenes de pago). Reemplaza el cálculo viejo 'amount - used', que
+    restaba 0 o 1 (el booleano 'used') en vez del monto real aplicado."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT COALESCE(SUM(amount_applied), 0) as total_applied
+    FROM syna_credit_payment_mapping
+    WHERE credit_id = ?
+    """, (credit_id,))
+    total_applied = cursor.fetchone()["total_applied"]
+
+    cursor.execute("SELECT amount FROM syna_credits WHERE id = ?", (credit_id,))
+    cr = cursor.fetchone()
+    conn.close()
+
+    if cr:
+        return cr["amount"] - total_applied
+    return 0
+
+
 def obtener_credits():
-    """Obtiene todas las notas de crédito."""
+    """Obtiene todas las notas de crédito (con saldo real disponible)."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -451,6 +532,10 @@ def obtener_credits():
 
     credits = [dict(row) for row in cursor.fetchall()]
     conn.close()
+
+    for cr in credits:
+        cr["saldo"] = calcular_saldo_credit(cr["id"])
+
     return credits
 
 
@@ -468,9 +553,17 @@ def marcar_credit_usado(credit_id, usado=True):
 
 
 def eliminar_credit(credit_id):
-    """Elimina una NC."""
+    """Elimina una NC (si no tiene pagos aplicados)."""
     conn = get_connection()
     cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT COUNT(*) as count FROM syna_credit_payment_mapping WHERE credit_id = ?
+    """, (credit_id,))
+    if cursor.fetchone()["count"] > 0:
+        conn.close()
+        raise ValueError("No se puede eliminar una NC con pagos aplicados")
+
     cursor.execute("DELETE FROM syna_credits WHERE id = ?", (credit_id,))
     conn.commit()
     conn.close()
@@ -502,11 +595,12 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
 
 
 def eliminar_payment(payment_id):
-    """Elimina una orden de pago (y sus mappings asociados)."""
+    """Elimina una orden de pago (y sus mappings asociados, tanto a facturas como a NC)."""
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = ?", (payment_id,))
+    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE payment_id = ?", (payment_id,))
     cursor.execute("DELETE FROM syna_payments WHERE id = ?", (payment_id,))
     conn.commit()
     conn.close()
@@ -665,6 +759,7 @@ def exportar_backup_excel():
         "Notas de Credito": "SELECT * FROM syna_credits ORDER BY id",
         "Ordenes de Pago": "SELECT * FROM syna_payments ORDER BY id",
         "Aplicaciones (FC-OP)": "SELECT * FROM syna_invoice_payment_mapping ORDER BY id",
+        "Aplicaciones (NC-OP)": "SELECT * FROM syna_credit_payment_mapping ORDER BY id",
         "Auditoria": "SELECT * FROM syna_audit_log ORDER BY id",
     }
 
