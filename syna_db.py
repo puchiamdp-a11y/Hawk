@@ -21,6 +21,7 @@ import pandas as pd
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
+import streamlit as st
 
 
 def _obtener_database_url():
@@ -200,6 +201,22 @@ def inicializar_db():
     _liberar_conexion(conn)
 
 
+def _limpiar_cache_lecturas():
+    """Invalida las lecturas de SYNA cacheadas con @st.cache_data.
+
+    Esas funciones (obtener_invoices, obtener_credits, etc.) se llaman
+    varias veces repetidas dentro de una misma pantalla (Streamlit
+    reejecuta el código de todas las pestañas en cada interacción, no
+    solo el de la pestaña visible) - cachearlas evita volver a golpear la
+    base externa por cada llamada redundante. A cambio, toda función que
+    escribe datos tiene que invalidar el cache acá para que el cambio se
+    vea reflejado al toque, no recién cuando venza el TTL."""
+    for fn in (obtener_invoices, obtener_credits, obtener_payments,
+               calcular_balance_syna, obtener_proximos_vencimientos,
+               obtener_audit_log):
+        fn.clear()
+
+
 # ============================================
 # FUNCIONES PARA INVOICES
 # ============================================
@@ -229,6 +246,7 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
             "due_date": due_date
         })
 
+        _limpiar_cache_lecturas()
         return invoice_id
     except psycopg2.IntegrityError as e:
         conn.rollback()
@@ -237,6 +255,7 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
         _liberar_conexion(conn)
 
 
+@st.cache_data(ttl=15)
 def obtener_invoices(filtro_estado=None):
     """Obtiene todas las facturas (con estado actualizado).
 
@@ -384,6 +403,7 @@ def eliminar_invoice(invoice_id):
     cursor.execute("DELETE FROM syna_invoices WHERE id = %s", (invoice_id,))
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_date,
@@ -407,6 +427,7 @@ def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_dat
             "invoice_number": invoice_number,
             "amount": amount
         })
+        _limpiar_cache_lecturas()
     except psycopg2.IntegrityError as e:
         conn.rollback()
         raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
@@ -442,9 +463,11 @@ def crear_payment(payment_date, amount, payer, description="", created_by="Dai",
     })
 
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
     return payment_id
 
 
+@st.cache_data(ttl=15)
 def obtener_payments():
     """Obtiene todos los pagos."""
     conn = get_connection()
@@ -496,6 +519,7 @@ def crear_mapping(invoice_id, payment_id, amount_applied):
 
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def obtener_mappings_por_payment(payment_id):
@@ -573,6 +597,7 @@ def eliminar_mapping(mapping_id):
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def crear_credit_mapping(credit_id, payment_id, amount_applied):
@@ -595,6 +620,7 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
 
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_id=None):
@@ -623,6 +649,7 @@ def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_
 
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def eliminar_credit_mapping(mapping_id):
@@ -632,6 +659,7 @@ def eliminar_credit_mapping(mapping_id):
     cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 # ============================================
@@ -659,6 +687,7 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
             "amount": amount
         })
 
+        _limpiar_cache_lecturas()
         return credit_id
     except psycopg2.IntegrityError as e:
         conn.rollback()
@@ -700,6 +729,7 @@ def calcular_saldo_credit(credit_id):
     return 0
 
 
+@st.cache_data(ttl=15)
 def obtener_credits():
     """Obtiene todas las notas de crédito (con saldo real disponible).
 
@@ -748,6 +778,7 @@ def marcar_credit_usado(credit_id, usado=True):
 
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def eliminar_credit(credit_id):
@@ -772,6 +803,7 @@ def eliminar_credit(credit_id):
     cursor.execute("DELETE FROM syna_credits WHERE id = %s", (credit_id,))
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False, billing_month="", category="", due_date=""):
@@ -792,6 +824,7 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
             "credit_number": credit_number,
             "amount": amount
         })
+        _limpiar_cache_lecturas()
     except psycopg2.IntegrityError as e:
         conn.rollback()
         raise ValueError(f"Número de NC duplicado: {credit_number}") from e
@@ -812,6 +845,7 @@ def eliminar_payment(payment_id):
     cursor.execute("DELETE FROM syna_payments WHERE id = %s", (payment_id,))
     conn.commit()
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, description=""):
@@ -837,12 +871,14 @@ def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, 
         "amount": amount
     })
     _liberar_conexion(conn)
+    _limpiar_cache_lecturas()
 
 
 # ============================================
 # FUNCIONES PARA CÁLCULOS GENERALES
 # ============================================
 
+@st.cache_data(ttl=15)
 def calcular_balance_syna():
     """Calcula balance total SYNA: Facturas (debe) contra pagos (haber).
 
@@ -903,6 +939,7 @@ def calcular_balance_syna():
     }
 
 
+@st.cache_data(ttl=15)
 def obtener_proximos_vencimientos(dias=30):
     """Obtiene facturas que vencen en los próximos N días."""
     from datetime import datetime, timedelta
@@ -950,6 +987,7 @@ def registrar_auditoria(conn, user, action, details):
     conn.commit()
 
 
+@st.cache_data(ttl=15)
 def obtener_audit_log():
     """Obtiene el histórico de auditoría."""
     conn = get_connection()
