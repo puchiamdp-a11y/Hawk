@@ -16,10 +16,10 @@ import uuid
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
-    crear_invoice, obtener_invoices, eliminar_invoice,
-    crear_payment, obtener_payments, obtener_payment, eliminar_payment,
+    crear_invoice, obtener_invoices, eliminar_invoice, actualizar_invoice,
+    crear_payment, obtener_payments, obtener_payment, eliminar_payment, actualizar_payment,
     crear_mapping, obtener_mappings_aplicados,
-    crear_credit, obtener_credits, eliminar_credit,
+    crear_credit, obtener_credits, eliminar_credit, actualizar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log, exportar_backup_excel
 )
@@ -501,6 +501,8 @@ def _tab_comprobantes():
 
     if "confirmar_eliminar" not in st.session_state:
         st.session_state.confirmar_eliminar = None
+    if "editando" not in st.session_state:
+        st.session_state.editando = None
 
     for fila in filas:
         clave = f"{fila['tipo']}_{fila['id']}"
@@ -518,19 +520,18 @@ def _tab_comprobantes():
         with c6:
             bc1, bc2 = st.columns(2)
             with bc1:
-                ver = st.button("👁️", key=f"ver_{clave}", help="Ver detalle", use_container_width=True)
+                if st.button("✏️", key=f"edit_{clave}", help="Editar", use_container_width=True):
+                    st.session_state.editando = None if st.session_state.editando == clave else clave
+                    st.session_state.confirmar_eliminar = None
+                    st.rerun()
             with bc2:
                 if st.button("🗑️", key=f"del_{clave}", help="Eliminar", use_container_width=True):
                     st.session_state.confirmar_eliminar = clave
+                    st.session_state.editando = None
                     st.rerun()
-            if ver:
-                st.session_state[f"expandido_{clave}"] = not st.session_state.get(f"expandido_{clave}", False)
 
-        if st.session_state.get(f"expandido_{clave}"):
-            with st.expander(f"Detalle de {fila['numero']}", expanded=True):
-                for k, v in fila["detalle"].items():
-                    if k not in ("id",):
-                        st.write(f"**{k}:** {v}")
+        if st.session_state.editando == clave:
+            _editar_comprobante(fila)
 
         if st.session_state.get("confirmar_eliminar") == clave:
             st.warning(f"¿Eliminar **{fila['numero']}** definitivamente? Esta acción no se puede deshacer.")
@@ -553,6 +554,142 @@ def _tab_comprobantes():
                 if st.button("Cancelar", key=f"cancel_{clave}", use_container_width=True):
                     st.session_state.confirmar_eliminar = None
                     st.rerun()
+
+
+def _fecha_a_date(fecha_iso):
+    """Convierte una fecha ISO guardada en la DB a date(), para pre-poblar
+    un st.date_input al editar. None si no hay fecha."""
+    if not fecha_iso:
+        return None
+    return datetime.fromisoformat(str(fecha_iso)[:10]).date()
+
+
+def _editar_comprobante(fila):
+    """Despacha al editor correspondiente según el tipo de comprobante.
+    Usa el mismo layout que el formulario de carga (misma disposición de
+    columnas y campos) para que editar se vea igual que cargar, en vez de
+    una lista de texto poco prolija."""
+    st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
+    if fila["tipo"] == "FC":
+        _editar_factura(fila["detalle"])
+    elif fila["tipo"] == "NC":
+        _editar_nc(fila["detalle"])
+    else:
+        _editar_odp(fila["detalle"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def _editar_factura(inv):
+    st.markdown(f"**Editar factura: {inv['invoice_number']}**")
+    with st.form(f"edit_fc_{inv['id']}"):
+        col1, col2 = st.columns(2)
+        with col1:
+            numero = st.text_input("Número FC", value=inv["invoice_number"])
+        with col2:
+            fecha = st.date_input("Fecha", value=_fecha_a_date(inv["invoice_date"]), format="DD/MM/YYYY")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, value=float(inv["amount"]), format="%.2f")
+        with col2:
+            vencimiento = st.date_input("Vencimiento", value=_fecha_a_date(inv["due_date"]), format="DD/MM/YYYY")
+
+        sellados = st.number_input("Sellados ($)", min_value=0.0, step=10.0,
+                                    value=float(inv.get("fixed_stamps") or 0), format="%.2f")
+        email = st.text_input("Link correo (opcional)", value=inv.get("email_link") or "")
+        notas = st.text_area("Notas", value=inv.get("notes") or "", height=60)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            guardar = st.form_submit_button("Guardar cambios", use_container_width=True)
+        with c2:
+            cancelar = st.form_submit_button("Cancelar", use_container_width=True)
+
+        if guardar:
+            try:
+                actualizar_invoice(
+                    inv["id"], numero, monto, fecha.isoformat(), vencimiento.isoformat(),
+                    sellados, email, notas
+                )
+                st.session_state.editando = None
+                st.success(f"{numero} actualizada.")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+        if cancelar:
+            st.session_state.editando = None
+            st.rerun()
+
+
+def _editar_nc(cr):
+    st.markdown(f"**Editar NC: {cr['credit_number']}**")
+    with st.form(f"edit_nc_{cr['id']}"):
+        col1, col2 = st.columns(2)
+        with col1:
+            numero = st.text_input("Número NC", value=cr["credit_number"])
+        with col2:
+            fecha = st.date_input("Fecha", value=_fecha_a_date(cr["credit_date"]), format="DD/MM/YYYY")
+
+        monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, value=float(cr["amount"]), format="%.2f")
+        utilizada = st.checkbox("Marcar como utilizada (informativo)", value=bool(cr.get("used")))
+
+        c1, c2 = st.columns(2)
+        with c1:
+            guardar = st.form_submit_button("Guardar cambios", use_container_width=True)
+        with c2:
+            cancelar = st.form_submit_button("Cancelar", use_container_width=True)
+
+        if guardar:
+            try:
+                actualizar_credit(cr["id"], numero, monto, fecha.isoformat(), utilizada)
+                st.session_state.editando = None
+                st.success(f"{numero} actualizada.")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+        if cancelar:
+            st.session_state.editando = None
+            st.rerun()
+
+
+def _editar_odp(pago):
+    numero_actual = pago.get("payment_number") or f"ODP-{pago['id']}"
+    st.markdown(f"**Editar ODP: {numero_actual}**")
+    with st.form(f"edit_odp_{pago['id']}"):
+        col1, col2 = st.columns(2)
+        with col1:
+            numero = st.text_input("Número ODP", value=pago.get("payment_number") or "")
+        with col2:
+            fecha = st.date_input("Fecha", value=_fecha_a_date(pago["payment_date"]), format="DD/MM/YYYY")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, value=float(pago["amount"]), format="%.2f")
+        with col2:
+            opciones_pagador = ["SYNA", "Blisterassist"]
+            idx = opciones_pagador.index(pago["payer"]) if pago["payer"] in opciones_pagador else 0
+            pagador = st.selectbox("Pagador", opciones_pagador, index=idx)
+
+        descripcion = st.text_area("Descripción", value=pago.get("description") or "", height=60)
+        st.caption("Las facturas/NC ya aplicadas a esta orden no se modifican desde aquí.")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            guardar = st.form_submit_button("Guardar cambios", use_container_width=True)
+        with c2:
+            cancelar = st.form_submit_button("Cancelar", use_container_width=True)
+
+        if guardar:
+            try:
+                actualizar_payment(pago["id"], numero, fecha.isoformat(), monto, pagador, descripcion)
+                st.session_state.editando = None
+                st.success(f"{numero or numero_actual} actualizada.")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+        if cancelar:
+            st.session_state.editando = None
+            st.rerun()
 
 
 def _form_factura():

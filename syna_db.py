@@ -226,6 +226,33 @@ def eliminar_invoice(invoice_id):
     conn.close()
 
 
+def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_date,
+                        fixed_stamps=0, email_link="", notes=""):
+    """Actualiza los datos de una factura existente."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+        UPDATE syna_invoices
+        SET invoice_number = ?, amount = ?, invoice_date = ?, due_date = ?,
+            fixed_stamps = ?, email_link = ?, notes = ?
+        WHERE id = ?
+        """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, notes, invoice_id))
+
+        conn.commit()
+        registrar_auditoria(conn, "Dai", "invoice_updated", {
+            "invoice_id": invoice_id,
+            "invoice_number": invoice_number,
+            "amount": amount
+        })
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
+    finally:
+        conn.close()
+
+
 # ============================================
 # FUNCIONES PARA PAYMENTS
 # ============================================
@@ -426,6 +453,31 @@ def eliminar_credit(credit_id):
     conn.close()
 
 
+def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False):
+    """Actualiza los datos de una NC existente."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+        UPDATE syna_credits
+        SET credit_number = ?, amount = ?, credit_date = ?, used = ?
+        WHERE id = ?
+        """, (credit_number, amount, credit_date, 1 if used else 0, credit_id))
+
+        conn.commit()
+        registrar_auditoria(conn, "Dai", "credit_updated", {
+            "credit_id": credit_id,
+            "credit_number": credit_number,
+            "amount": amount
+        })
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise ValueError(f"Número de NC duplicado: {credit_number}") from e
+    finally:
+        conn.close()
+
+
 def eliminar_payment(payment_id):
     """Elimina una orden de pago (y sus mappings asociados)."""
     conn = get_connection()
@@ -434,6 +486,31 @@ def eliminar_payment(payment_id):
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = ?", (payment_id,))
     cursor.execute("DELETE FROM syna_payments WHERE id = ?", (payment_id,))
     conn.commit()
+    conn.close()
+
+
+def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, description=""):
+    """Actualiza los datos de una orden de pago existente.
+
+    No toca los mappings (aplicaciones a facturas/NC) ya registrados; si
+    el usuario cambió el monto de forma que ya no cubre lo aplicado, eso
+    queda igual que si lo hubiera aplicado él mismo - no se revierte nada
+    automáticamente para no perder el historial de aplicaciones."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    UPDATE syna_payments
+    SET payment_number = ?, payment_date = ?, amount = ?, payer = ?, description = ?
+    WHERE id = ?
+    """, (payment_number, payment_date, amount, payer, description, payment_id))
+
+    conn.commit()
+    registrar_auditoria(conn, "Dai", "payment_updated", {
+        "payment_id": payment_id,
+        "payment_number": payment_number,
+        "amount": amount
+    })
     conn.close()
 
 
