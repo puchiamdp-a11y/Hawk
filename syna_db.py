@@ -20,6 +20,7 @@ from io import BytesIO
 import pandas as pd
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
 
 def _obtener_database_url():
@@ -43,12 +44,34 @@ def _obtener_database_url():
         ) from e
 
 
+# Pool de conexiones a la base externa. Streamlit vuelve a ejecutar todo
+# el script en cada interacción del usuario, y antes cada función de este
+# módulo abría una conexión (con handshake TLS completo) por separado -
+# contra un archivo local eso no se notaba, pero contra un servidor en
+# otro lado suma cientos de milisegundos por click. El pool se crea una
+# sola vez por proceso y las conexiones se reciclan entre llamadas.
+_pool = None
+
+
+def _obtener_pool():
+    global _pool
+    if _pool is None:
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            1, 10,
+            _obtener_database_url(),
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
+    return _pool
+
+
 def get_connection():
-    """Obtiene conexión a la base Postgres externa."""
-    return psycopg2.connect(
-        _obtener_database_url(),
-        cursor_factory=psycopg2.extras.RealDictCursor,
-    )
+    """Obtiene una conexión del pool a la base Postgres externa."""
+    return _obtener_pool().getconn()
+
+
+def _liberar_conexion(conn):
+    """Devuelve la conexión al pool en vez de cerrarla."""
+    _obtener_pool().putconn(conn)
 
 
 def inicializar_db():
@@ -174,7 +197,7 @@ def inicializar_db():
     """)
 
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 # ============================================
@@ -211,37 +234,50 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
         conn.rollback()
         raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
     finally:
-        conn.close()
+        _liberar_conexion(conn)
 
 
 def obtener_invoices(filtro_estado=None):
-    """Obtiene todas las facturas (con estado actualizado)."""
+    """Obtiene todas las facturas (con estado actualizado).
+
+    Trae el efectivo y la NC aplicados de cada factura en la misma
+    consulta (LEFT JOIN + agregación), en vez de una consulta aparte por
+    factura como antes (calcular_aplicado_factura por cada fila): con la
+    base en un servidor externo, cada consulta extra es un viaje de red,
+    y esa versión anterior hacía dos por factura."""
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
     SELECT i.id, i.invoice_number, i.amount, i.invoice_date, i.due_date,
            i.fixed_stamps, i.email_link, i.created_at, i.created_by, i.notes,
-           i.billing_month, i.category
+           i.billing_month, i.category,
+           COALESCE(pm.total_efectivo, 0) AS efectivo_aplicado,
+           COALESCE(cm.total_nc, 0) AS nc_aplicada
     FROM syna_invoices i
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount_applied) AS total_efectivo
+        FROM syna_invoice_payment_mapping GROUP BY invoice_id
+    ) pm ON pm.invoice_id = i.id
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount_applied) AS total_nc
+        FROM syna_invoice_credit_mapping GROUP BY invoice_id
+    ) cm ON cm.invoice_id = i.id
     ORDER BY i.created_at DESC
     """)
 
     invoices = []
     for row in cursor.fetchall():
         invoice = dict(row)
-        efectivo_aplicado, nc_aplicada = calcular_aplicado_factura(invoice["id"])
-        saldo = invoice["amount"] - efectivo_aplicado - nc_aplicada
+        saldo = invoice["amount"] - invoice["efectivo_aplicado"] - invoice["nc_aplicada"]
         invoice["saldo"] = saldo
-        invoice["efectivo_aplicado"] = efectivo_aplicado
-        invoice["nc_aplicada"] = nc_aplicada
         invoice["estado"] = determinar_estado_factura(invoice["amount"], saldo)
 
         # Filtrar por estado si se especifica
         if filtro_estado is None or invoice["estado"] == filtro_estado:
             invoices.append(invoice)
 
-    conn.close()
+    _liberar_conexion(conn)
     return invoices
 
 
@@ -268,7 +304,7 @@ def calcular_aplicado_factura(invoice_id):
     """, (invoice_id,))
     total_nc_aplicada = cursor.fetchone()["total_applied"]
 
-    conn.close()
+    _liberar_conexion(conn)
     return total_efectivo, total_nc_aplicada
 
 
@@ -281,7 +317,7 @@ def calcular_saldo_factura(invoice_id):
     cursor = conn.cursor()
     cursor.execute("SELECT amount FROM syna_invoices WHERE id = %s", (invoice_id,))
     inv = cursor.fetchone()
-    conn.close()
+    _liberar_conexion(conn)
 
     if inv:
         return inv["amount"] - total_efectivo - total_nc_aplicada
@@ -335,19 +371,19 @@ def eliminar_invoice(invoice_id):
     SELECT COUNT(*) as count FROM syna_invoice_payment_mapping WHERE invoice_id = %s
     """, (invoice_id,))
     if cursor.fetchone()["count"] > 0:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError("No se puede eliminar factura con pagos asociados")
 
     cursor.execute("""
     SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE invoice_id = %s
     """, (invoice_id,))
     if cursor.fetchone()["count"] > 0:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError("No se puede eliminar factura con notas de crédito aplicadas")
 
     cursor.execute("DELETE FROM syna_invoices WHERE id = %s", (invoice_id,))
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_date,
@@ -375,7 +411,7 @@ def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_dat
         conn.rollback()
         raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
     finally:
-        conn.close()
+        _liberar_conexion(conn)
 
 
 # ============================================
@@ -405,7 +441,7 @@ def crear_payment(payment_date, amount, payer, description="", created_by="Dai",
         "payment_date": payment_date
     })
 
-    conn.close()
+    _liberar_conexion(conn)
     return payment_id
 
 
@@ -421,7 +457,7 @@ def obtener_payments():
     """)
 
     payments = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    _liberar_conexion(conn)
     return payments
 
 
@@ -432,7 +468,7 @@ def obtener_payment(payment_id):
 
     cursor.execute("SELECT * FROM syna_payments WHERE id = %s", (payment_id,))
     result = cursor.fetchone()
-    conn.close()
+    _liberar_conexion(conn)
 
     return dict(result) if result else None
 
@@ -449,7 +485,7 @@ def crear_mapping(invoice_id, payment_id, amount_applied):
     # Validar que el monto no sea mayor al saldo de la factura
     saldo = calcular_saldo_factura(invoice_id)
     if amount_applied > saldo + EPSILON_REDONDEO:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo pendiente ({saldo})")
 
     now = datetime.now().isoformat()
@@ -459,7 +495,7 @@ def crear_mapping(invoice_id, payment_id, amount_applied):
     """, (invoice_id, payment_id, amount_applied, now))
 
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def obtener_mappings_por_payment(payment_id):
@@ -475,7 +511,7 @@ def obtener_mappings_por_payment(payment_id):
     """, (payment_id,))
 
     mappings = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    _liberar_conexion(conn)
     return mappings
 
 
@@ -503,7 +539,7 @@ def obtener_mappings_aplicados():
     """)
 
     aplicados = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    _liberar_conexion(conn)
     return aplicados
 
 
@@ -526,7 +562,7 @@ def obtener_aplicaciones_nc():
     """)
 
     aplicaciones = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    _liberar_conexion(conn)
     return aplicaciones
 
 
@@ -536,7 +572,7 @@ def eliminar_mapping(mapping_id):
     cursor = conn.cursor()
     cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def crear_credit_mapping(credit_id, payment_id, amount_applied):
@@ -548,7 +584,7 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
 
     saldo = calcular_saldo_credit(credit_id)
     if amount_applied > saldo + EPSILON_REDONDEO:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo pendiente ({saldo})")
 
     now = datetime.now().isoformat()
@@ -558,7 +594,7 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
     """, (credit_id, payment_id, amount_applied, now))
 
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_id=None):
@@ -571,12 +607,12 @@ def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_
 
     saldo_factura = calcular_saldo_factura(invoice_id)
     if amount_applied > saldo_factura + EPSILON_REDONDEO:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la factura ({saldo_factura})")
 
     saldo_credit = calcular_saldo_credit(credit_id)
     if amount_applied > saldo_credit + EPSILON_REDONDEO:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la NC ({saldo_credit})")
 
     now = datetime.now().isoformat()
@@ -586,7 +622,7 @@ def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_
     """, (invoice_id, credit_id, payment_id, amount_applied, now))
 
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def eliminar_credit_mapping(mapping_id):
@@ -595,7 +631,7 @@ def eliminar_credit_mapping(mapping_id):
     cursor = conn.cursor()
     cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 # ============================================
@@ -628,7 +664,7 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
         conn.rollback()
         raise ValueError(f"Número de NC duplicado: {credit_number}") from e
     finally:
-        conn.close()
+        _liberar_conexion(conn)
 
 
 def calcular_saldo_credit(credit_id):
@@ -657,7 +693,7 @@ def calcular_saldo_credit(credit_id):
 
     cursor.execute("SELECT amount FROM syna_credits WHERE id = %s", (credit_id,))
     cr = cursor.fetchone()
-    conn.close()
+    _liberar_conexion(conn)
 
     if cr:
         return cr["amount"] - total_nueva - total_vieja
@@ -665,22 +701,39 @@ def calcular_saldo_credit(credit_id):
 
 
 def obtener_credits():
-    """Obtiene todas las notas de crédito (con saldo real disponible)."""
+    """Obtiene todas las notas de crédito (con saldo real disponible).
+
+    Igual que obtener_invoices(): trae lo aplicado de cada NC en la misma
+    consulta en vez de llamar a calcular_saldo_credit() por cada una (esa
+    función sola ya hace 3 consultas; sobre una NC por NC, era otro punto
+    de N consultas de red extra por pantalla)."""
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, credit_number, amount, credit_date, used, created_at, created_by, billing_month, category, due_date
-    FROM syna_credits
-    ORDER BY created_at DESC
+    SELECT c.id, c.credit_number, c.amount, c.credit_date, c.used, c.created_at,
+           c.created_by, c.billing_month, c.category, c.due_date,
+           COALESCE(icm.total_nueva, 0) AS total_nueva,
+           COALESCE(cpm.total_vieja, 0) AS total_vieja
+    FROM syna_credits c
+    LEFT JOIN (
+        SELECT credit_id, SUM(amount_applied) AS total_nueva
+        FROM syna_invoice_credit_mapping GROUP BY credit_id
+    ) icm ON icm.credit_id = c.id
+    LEFT JOIN (
+        SELECT credit_id, SUM(amount_applied) AS total_vieja
+        FROM syna_credit_payment_mapping GROUP BY credit_id
+    ) cpm ON cpm.credit_id = c.id
+    ORDER BY c.created_at DESC
     """)
 
-    credits = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    credits = []
+    for row in cursor.fetchall():
+        cr = dict(row)
+        cr["saldo"] = cr["amount"] - cr.pop("total_nueva") - cr.pop("total_vieja")
+        credits.append(cr)
 
-    for cr in credits:
-        cr["saldo"] = calcular_saldo_credit(cr["id"])
-
+    _liberar_conexion(conn)
     return credits
 
 
@@ -694,7 +747,7 @@ def marcar_credit_usado(credit_id, usado=True):
     """, (1 if usado else 0, credit_id))
 
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def eliminar_credit(credit_id):
@@ -706,19 +759,19 @@ def eliminar_credit(credit_id):
     SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE credit_id = %s
     """, (credit_id,))
     if cursor.fetchone()["count"] > 0:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError("No se puede eliminar una NC aplicada a una factura")
 
     cursor.execute("""
     SELECT COUNT(*) as count FROM syna_credit_payment_mapping WHERE credit_id = %s
     """, (credit_id,))
     if cursor.fetchone()["count"] > 0:
-        conn.close()
+        _liberar_conexion(conn)
         raise ValueError("No se puede eliminar una NC con pagos aplicados")
 
     cursor.execute("DELETE FROM syna_credits WHERE id = %s", (credit_id,))
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False, billing_month="", category="", due_date=""):
@@ -743,7 +796,7 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
         conn.rollback()
         raise ValueError(f"Número de NC duplicado: {credit_number}") from e
     finally:
-        conn.close()
+        _liberar_conexion(conn)
 
 
 def eliminar_payment(payment_id):
@@ -758,7 +811,7 @@ def eliminar_payment(payment_id):
     cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE payment_id = %s", (payment_id,))
     cursor.execute("DELETE FROM syna_payments WHERE id = %s", (payment_id,))
     conn.commit()
-    conn.close()
+    _liberar_conexion(conn)
 
 
 def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, description=""):
@@ -783,7 +836,7 @@ def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, 
         "payment_number": payment_number,
         "amount": amount
     })
-    conn.close()
+    _liberar_conexion(conn)
 
 
 # ============================================
@@ -832,7 +885,7 @@ def calcular_balance_syna():
     cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_credit_payment_mapping")
     total_pagado_nc_legacy = cursor.fetchone()["total"]
 
-    conn.close()
+    _liberar_conexion(conn)
 
     total_pagado = total_efectivo_aplicado + total_nc_aplicada
     saldo_pendiente = total_facturado - total_pagado
@@ -876,7 +929,7 @@ def obtener_proximos_vencimientos(dias=30):
         if saldo > 0:  # Solo mostrar si hay saldo pendiente
             vencimientos.append(inv)
 
-    conn.close()
+    _liberar_conexion(conn)
     return vencimientos
 
 
@@ -914,7 +967,7 @@ def obtener_audit_log():
         log["details"] = json.loads(log["details"]) if log["details"] else {}
         logs.append(log)
 
-    conn.close()
+    _liberar_conexion(conn)
     return logs
 
 
@@ -949,7 +1002,7 @@ def exportar_backup_excel():
                 df = pd.read_sql_query(query, conn)
             df.to_excel(writer, sheet_name=nombre_hoja, index=False)
 
-    conn.close()
+    _liberar_conexion(conn)
     buffer.seek(0)
     return buffer.getvalue()
 
