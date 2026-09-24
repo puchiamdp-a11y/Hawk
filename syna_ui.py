@@ -522,15 +522,17 @@ def _tab_comprobantes():
             "detalle": inv,
         })
     for cr in credits:
-        # Estado según el saldo real (lo aplicado a órdenes de pago), no
-        # el campo manual 'used' - antes decía "Disponible" aunque la NC
-        # ya estuviera completamente aplicada a una ODP.
+        # Mismos colores que el estado equivalente de una factura, para
+        # que signifiquen lo mismo de un vistazo: verde = ya se usó del
+        # todo (Pagada/Aplicada), ámbar = parcial, rojo = todavía nada
+        # (Impaga/Disponible). Antes "Disponible" estaba en verde, lo
+        # mismo que "Aplicada" - dos estados opuestos con el mismo color.
         if cr["saldo"] <= TOLERANCIA_SALDO:
             estado, clase = "Aplicada", "syna-badge-verde"
         elif cr["saldo"] < cr["amount"]:
             estado, clase = "Parcial", "syna-badge-ambar"
         else:
-            estado, clase = "Disponible", "syna-badge-verde"
+            estado, clase = "Disponible", "syna-badge-rojo"
         filas.append({
             "tipo": "NC", "id": cr["id"], "numero": cr["credit_number"],
             "monto": cr["amount"], "fecha": cr["credit_date"],
@@ -584,12 +586,14 @@ def _tab_comprobantes():
     df_comprobantes = pd.DataFrame(filas_tabla)
 
     def _colorear_estado(row):
+        # Mismos 3 colores para el mismo significado en FC y NC: verde =
+        # ya cubierto del todo, ámbar = parcial, rojo = todavía nada.
         estilos = [""] * len(row)
         idx_estado = row.index.get_loc("Estado")
         estado = row["Estado"]
-        if estado in ("Pagada", "Disponible", "Registrada", "Aplicada"):
+        if estado in ("Pagada", "Registrada", "Aplicada"):
             estilos[idx_estado] = "background-color: #F0FDF4; color: #15803D; font-weight: 600;"
-        elif estado == "Impaga":
+        elif estado in ("Impaga", "Disponible"):
             estilos[idx_estado] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 600;"
         else:
             estilos[idx_estado] = "background-color: #FFFBEB; color: #B45309; font-weight: 600;"
