@@ -414,6 +414,26 @@ def marcar_credit_usado(credit_id, usado=True):
     conn.close()
 
 
+def eliminar_credit(credit_id):
+    """Elimina una NC."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM syna_credits WHERE id = ?", (credit_id,))
+    conn.commit()
+    conn.close()
+
+
+def eliminar_payment(payment_id):
+    """Elimina una orden de pago (y sus mappings asociados)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = ?", (payment_id,))
+    cursor.execute("DELETE FROM syna_payments WHERE id = ?", (payment_id,))
+    conn.commit()
+    conn.close()
+
+
 # ============================================
 # FUNCIONES PARA CÁLCULOS GENERALES
 # ============================================

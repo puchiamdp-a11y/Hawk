@@ -16,10 +16,10 @@ import uuid
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
-    crear_invoice, obtener_invoices,
-    crear_payment, obtener_payments, obtener_payment,
+    crear_invoice, obtener_invoices, eliminar_invoice,
+    crear_payment, obtener_payments, obtener_payment, eliminar_payment,
     crear_mapping, obtener_mappings_aplicados,
-    crear_credit, obtener_credits,
+    crear_credit, obtener_credits, eliminar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log
 )
@@ -443,46 +443,119 @@ def _tab_comprobantes():
         st.info("Todavía no hay comprobantes registrados.")
         return
 
-    html = '<table class="syna-table"><thead><tr>'
-    html += '<th>Comprobante</th><th>Tipo</th><th>Monto</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>'
-
     badge_por_estado = {
         "Pagada": ("syna-badge-verde", "Pagada"),
         "Impaga": ("syna-badge-rojo", "Impaga"),
         "Parcialmente pagada": ("syna-badge-ambar", "Parcial"),
     }
 
+    filas = []
     for inv in invoices[:10]:
         clase, texto = badge_por_estado.get(inv["estado"], ("syna-badge-ambar", inv["estado"]))
-        html += f'<tr><td><strong>{inv["invoice_number"]}</strong></td><td>Factura</td>'
-        html += f'<td>${inv["amount"]:,.2f}</td><td>{_fmt_fecha(inv["invoice_date"])}</td>'
-        html += f'<td><span class="syna-badge {clase}">{texto}</span></td></tr>'
-
+        filas.append({
+            "tipo": "FC", "id": inv["id"], "numero": inv["invoice_number"],
+            "monto": inv["amount"], "fecha": inv["invoice_date"],
+            "estado_texto": texto, "estado_clase": clase, "orden": inv["created_at"],
+            "detalle": inv,
+        })
     for cr in credits[:5]:
         estado = "Utilizada" if cr["used"] else "Disponible"
         clase = "syna-badge-verde" if not cr["used"] else "syna-badge-ambar"
-        html += f'<tr><td><strong>{cr["credit_number"]}</strong></td><td>Nota de Crédito</td>'
-        html += f'<td>${cr["amount"]:,.2f}</td><td>{_fmt_fecha(cr["credit_date"])}</td>'
-        html += f'<td><span class="syna-badge {clase}">{estado}</span></td></tr>'
-
+        filas.append({
+            "tipo": "NC", "id": cr["id"], "numero": cr["credit_number"],
+            "monto": cr["amount"], "fecha": cr["credit_date"],
+            "estado_texto": estado, "estado_clase": clase, "orden": cr["created_at"],
+            "detalle": cr,
+        })
     for pago in payments[:5]:
         numero_visible = pago.get("payment_number") or f"ODP-{pago['id']}"
-        html += f'<tr><td><strong>{numero_visible}</strong></td><td>Orden de Pago</td>'
-        html += f'<td>${pago["amount"]:,.2f}</td><td>{_fmt_fecha(pago["payment_date"])}</td>'
-        html += '<td><span class="syna-badge syna-badge-verde">Registrada</span></td></tr>'
+        filas.append({
+            "tipo": "ODP", "id": pago["id"], "numero": numero_visible,
+            "monto": pago["amount"], "fecha": pago["payment_date"],
+            "estado_texto": "Registrada", "estado_clase": "syna-badge-verde",
+            "orden": pago["created_at"], "detalle": pago,
+        })
 
-    html += '</tbody></table>'
-    st.markdown(html, unsafe_allow_html=True)
+    filas.sort(key=lambda f: f["orden"], reverse=True)
+
+    etiqueta_tipo = {"FC": "Factura", "NC": "Nota de Crédito", "ODP": "Orden de Pago"}
+
+    h1, h2, h3, h4, h5, h6 = st.columns([2, 1.4, 1.2, 1.2, 1.2, 1.4])
+    for h, texto in zip((h1, h2, h3, h4, h5), ("**Comprobante**", "**Tipo**", "**Monto**", "**Fecha**", "**Estado**")):
+        with h:
+            st.markdown(texto)
+
+    if "confirmar_eliminar" not in st.session_state:
+        st.session_state.confirmar_eliminar = None
+
+    for fila in filas:
+        clave = f"{fila['tipo']}_{fila['id']}"
+        c1, c2, c3, c4, c5, c6 = st.columns([2, 1.4, 1.2, 1.2, 1.2, 1.4])
+        with c1:
+            st.write(f"**{fila['numero']}**")
+        with c2:
+            st.write(etiqueta_tipo[fila["tipo"]])
+        with c3:
+            st.write(f"${fila['monto']:,.2f}")
+        with c4:
+            st.write(_fmt_fecha(fila["fecha"]))
+        with c5:
+            st.markdown(f'<span class="syna-badge {fila["estado_clase"]}">{fila["estado_texto"]}</span>', unsafe_allow_html=True)
+        with c6:
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                ver = st.button("👁️", key=f"ver_{clave}", help="Ver detalle", use_container_width=True)
+            with bc2:
+                if st.button("🗑️", key=f"del_{clave}", help="Eliminar", use_container_width=True):
+                    st.session_state.confirmar_eliminar = clave
+                    st.rerun()
+            if ver:
+                st.session_state[f"expandido_{clave}"] = not st.session_state.get(f"expandido_{clave}", False)
+
+        if st.session_state.get(f"expandido_{clave}"):
+            with st.expander(f"Detalle de {fila['numero']}", expanded=True):
+                for k, v in fila["detalle"].items():
+                    if k not in ("id",):
+                        st.write(f"**{k}:** {v}")
+
+        if st.session_state.get("confirmar_eliminar") == clave:
+            st.warning(f"¿Eliminar **{fila['numero']}** definitivamente? Esta acción no se puede deshacer.")
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                if st.button("Sí, eliminar", key=f"confirm_{clave}", use_container_width=True):
+                    try:
+                        if fila["tipo"] == "FC":
+                            eliminar_invoice(fila["id"])
+                        elif fila["tipo"] == "NC":
+                            eliminar_credit(fila["id"])
+                        else:
+                            eliminar_payment(fila["id"])
+                        st.session_state.confirmar_eliminar = None
+                        st.success(f"{fila['numero']} eliminado.")
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(str(e))
+            with cc2:
+                if st.button("Cancelar", key=f"cancel_{clave}", use_container_width=True):
+                    st.session_state.confirmar_eliminar = None
+                    st.rerun()
 
 
 def _form_factura():
     with st.container():
         st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
+
+        invoices_existentes = obtener_invoices()
+        numeros_fc_existentes = {inv["invoice_number"].strip().lower() for inv in invoices_existentes}
+        ultima_fc = invoices_existentes[0]["invoice_number"] if invoices_existentes else None
+
         with st.form("factura_form", clear_on_submit=True):
             st.markdown("**Registrar factura**")
             col1, col2 = st.columns(2)
             with col1:
                 numero_fc = st.text_input("Número FC", placeholder="FC-2026-001")
+                if ultima_fc:
+                    st.caption(f"Última FC registrada: **{ultima_fc}**")
             with col2:
                 fecha_factura = st.date_input("Fecha", format="DD/MM/YYYY")
 
@@ -504,6 +577,8 @@ def _form_factura():
             if st.form_submit_button("Registrar factura", use_container_width=True):
                 if not numero_fc or monto <= 0:
                     st.error("Número y monto son obligatorios")
+                elif numero_fc.strip().lower() in numeros_fc_existentes:
+                    st.error(f"⚠️ El número {numero_fc} ya fue utilizado. Elegí otro número.")
                 else:
                     try:
                         crear_invoice(
@@ -522,11 +597,18 @@ def _form_factura():
 
 def _form_nc():
     st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
+
+    credits_existentes = obtener_credits()
+    numeros_nc_existentes = {c["credit_number"].strip().lower() for c in credits_existentes}
+    ultima_nc = credits_existentes[0]["credit_number"] if credits_existentes else None
+
     with st.form("nc_form", clear_on_submit=True):
         st.markdown("**Registrar nota de crédito**")
         col1, col2 = st.columns(2)
         with col1:
             numero_nc = st.text_input("Número NC", placeholder="NC-2026-001")
+            if ultima_nc:
+                st.caption(f"Última NC registrada: **{ultima_nc}**")
         with col2:
             fecha_nc = st.date_input("Fecha", format="DD/MM/YYYY")
 
@@ -536,6 +618,8 @@ def _form_nc():
         if st.form_submit_button("Registrar NC", use_container_width=True):
             if not numero_nc or monto_nc <= 0:
                 st.error("Número y monto son obligatorios")
+            elif numero_nc.strip().lower() in numeros_nc_existentes:
+                st.error(f"⚠️ El número {numero_nc} ya fue utilizado. Elegí otro número.")
             else:
                 try:
                     crear_credit(
@@ -554,10 +638,21 @@ def _form_odp():
     st.markdown('<div class="syna-form-box">', unsafe_allow_html=True)
     st.markdown("**Registrar orden de pago + Aplicar a facturas/NC**")
 
+    payments_existentes = obtener_payments()
+    numeros_odp_existentes = {
+        p["payment_number"].strip().lower()
+        for p in payments_existentes if p.get("payment_number")
+    }
+    ultima_odp = next((p["payment_number"] for p in payments_existentes if p.get("payment_number")), None)
+
     # Datos de la ODP
     col1, col2 = st.columns(2)
     with col1:
         numero_odp = st.text_input("Número ODP", placeholder="ODP-2026-001", key="numero_odp_input")
+        if ultima_odp:
+            st.caption(f"Última ODP registrada: **{ultima_odp}**")
+        if numero_odp and numero_odp.strip().lower() in numeros_odp_existentes:
+            st.error(f"⚠️ El número {numero_odp} ya fue utilizado. Elegí otro número.")
     with col2:
         fecha_pago = st.date_input("Fecha", format="DD/MM/YYYY", key="fecha_pago_input")
 
@@ -672,6 +767,8 @@ def _form_odp():
             if st.button("Registrar y aplicar", use_container_width=True, key="registrar_y_aplicar"):
                 if not numero_odp.strip():
                     st.error("Ingresa un número de ODP")
+                elif numero_odp.strip().lower() in numeros_odp_existentes:
+                    st.error(f"⚠️ El número {numero_odp} ya fue utilizado. Elegí otro número.")
                 elif monto_pago <= 0:
                     st.error("El monto debe ser mayor a 0")
                 elif total_aplicado == 0:
