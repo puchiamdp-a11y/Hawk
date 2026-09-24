@@ -18,7 +18,7 @@ Este módulo resuelve el problema permitiendo:
 
 ### Stack Tecnológico
 - **Frontend**: Streamlit (integrado en Hawk)
-- **Backend**: SQLite (BD local versionada)
+- **Backend**: Postgres externo (ej. Neon, tier gratuito) — ver "Persistencia y Backup" más abajo
 - **Lenguaje**: Python 3.8+
 
 ### Módulos
@@ -26,11 +26,53 @@ Este módulo resuelve el problema permitiendo:
 | Archivo | Propósito |
 |---------|-----------|
 | `syna_db.py` | Lógica de BD + funciones CRUD |
-| `syna_ui.py` | Interfaz Dai (admin) - 5 tabs |
-| `syna_viewer.py` | Interfaz Cintia (viewer) - read-only |
+| `syna_ui.py` | Interfaz Dai (admin) y Cintia (viewer) - 5 tabs |
 | `app.py` (modificado) | Integración en Hawk |
 | `test_syna_data.py` | Suite de testing con datos |
-| `syna_tracking.db` | BD SQLite (versionada) |
+| `migrar_datos_existentes.py` | Migración única de datos viejos (SQLite o Excel) al Postgres externo |
+
+---
+
+## 💾 Persistencia y Backup
+
+Los datos de SYNA **NO** viven en un archivo junto al código. Viven en una
+base Postgres externa (recomendado: [Neon](https://neon.tech), tier
+gratuito permanente, no pide tarjeta). Esto es intencional: antes se usaba
+un archivo SQLite (`syna_tracking.db`) en el disco del propio contenedor
+de la app, que se perdía sin aviso ante cualquier redeploy o cambio de
+código. Con una base externa, el código se puede modificar, redeployar o
+recrear el contenedor sin que la información cargada corra riesgo.
+
+### Configuración (una sola vez)
+
+1. Crear una cuenta gratuita en [neon.tech](https://neon.tech) y un
+   proyecto/base nueva.
+2. Copiar la **connection string** (formato
+   `postgresql://usuario:password@host/dbname?sslmode=require`).
+3. Configurarla como secreto, **nunca** en el código ni en git:
+   - **Local**: crear `.streamlit/secrets.toml` (ya está en `.gitignore`) con:
+     ```toml
+     SYNA_DATABASE_URL = "postgresql://usuario:password@host/dbname?sslmode=require"
+     ```
+   - **Producción (Streamlit Cloud)**: en la configuración de la app,
+     sección "Secrets", agregar la misma clave `SYNA_DATABASE_URL`.
+4. Al iniciar, la app llama a `inicializar_db()` (`syna_db.py`), que crea
+   las tablas si no existen — no hace falta ningún paso manual extra en
+   una base nueva.
+
+### Migrar datos que ya existían en el SQLite viejo
+
+Si ya había datos cargados en el `syna_tracking.db` de producción antes de
+este cambio, migrarlos una sola vez con `migrar_datos_existentes.py` (ver
+el docstring del archivo para el paso a paso), a partir del `.db` original
+o de un backup Excel descargado con el botón "💾 Descargar backup".
+
+### Backup adicional
+
+El botón "💾 Descargar backup" (Excel, una hoja por tabla) sigue
+disponible como resguardo manual extra, pero ya no es la única red de
+seguridad: la base Postgres externa es la fuente de verdad y sobrevive
+por sí sola a cambios de código.
 
 ---
 

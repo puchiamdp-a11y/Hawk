@@ -1,65 +1,86 @@
 """
 SYNA Tracking - Database Module
-Gestión de base de datos SQLite para tracking de facturas y pagos SYNA
+Gestión de base de datos para tracking de facturas y pagos SYNA.
+
+Persistencia: Postgres externo (ej. Neon, tier gratuito), NO un archivo
+local. Un archivo SQLite junto al código vive en el disco del contenedor:
+un redeploy, un cambio de código o un contenedor nuevo lo borra sin
+avisar. Al vivir en un servicio externo, los datos de SYNA quedan
+desconectados del ciclo de vida del código: se puede modificar, redeployar
+o recrear el contenedor de la app sin que la información cargada corra
+ningún riesgo. Ver SYNA_TRACKING_README.md para cómo configurar
+SYNA_DATABASE_URL.
 """
 
-import sqlite3
+import os
 import json
-import shutil
+import warnings
 from datetime import datetime
-from pathlib import Path
 from io import BytesIO
 import pandas as pd
+import psycopg2
+import psycopg2.extras
 
-DB_PATH = Path(__file__).parent / "syna_tracking.db"
+
+def _obtener_database_url():
+    """Connection string de la base externa. Se busca primero en una
+    variable de entorno (útil para scripts standalone como
+    test_syna_data.py o una migración corrida a mano) y, si no está, en
+    los secrets de Streamlit (donde vive en producción y en desarrollo
+    local vía .streamlit/secrets.toml, que ya está en .gitignore)."""
+    url = os.environ.get("SYNA_DATABASE_URL")
+    if url:
+        return url
+    try:
+        import streamlit as st
+        return st.secrets["SYNA_DATABASE_URL"]
+    except Exception as e:
+        raise RuntimeError(
+            "Falta configurar SYNA_DATABASE_URL: definila como variable de "
+            "entorno o agregala a .streamlit/secrets.toml (local) / a los "
+            "Secrets de la app en Streamlit Cloud (producción). Ver "
+            "SYNA_TRACKING_README.md."
+        ) from e
 
 
 def get_connection():
-    """Obtiene conexión a la BD SQLite."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Obtiene conexión a la base Postgres externa."""
+    return psycopg2.connect(
+        _obtener_database_url(),
+        cursor_factory=psycopg2.extras.RealDictCursor,
+    )
 
 
 def inicializar_db():
-    """Inicializa las 5 tablas de SYNA tracking."""
+    """Inicializa las tablas de SYNA tracking (idempotente)."""
     conn = get_connection()
     cursor = conn.cursor()
 
     # TABLA 1: Facturas de Sancor
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_invoices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         invoice_number TEXT UNIQUE NOT NULL,
-        amount REAL NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
         invoice_date TEXT,
         due_date TEXT,
-        fixed_stamps REAL DEFAULT 0,
+        fixed_stamps DOUBLE PRECISION DEFAULT 0,
         email_link TEXT,
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL,
         notes TEXT,
         billing_month TEXT,
-        category TEXT,
-        UNIQUE(invoice_number)
+        category TEXT
     )
     """)
-
-    # Migración: agregar billing_month/category si la tabla ya existía sin esas columnas
-    cursor.execute("PRAGMA table_info(syna_invoices)")
-    columnas_inv = [c[1] for c in cursor.fetchall()]
-    if "billing_month" not in columnas_inv:
-        cursor.execute("ALTER TABLE syna_invoices ADD COLUMN billing_month TEXT")
-    if "category" not in columnas_inv:
-        cursor.execute("ALTER TABLE syna_invoices ADD COLUMN category TEXT")
 
     # TABLA 2: Órdenes de pago
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         payment_number TEXT,
         payment_date TEXT NOT NULL,
-        amount REAL NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
         payer TEXT NOT NULL,
         description TEXT,
         created_at TEXT NOT NULL,
@@ -67,19 +88,31 @@ def inicializar_db():
     )
     """)
 
-    # Migración: agregar payment_number si la tabla ya existía sin esa columna
-    cursor.execute("PRAGMA table_info(syna_payments)")
-    columnas = [c[1] for c in cursor.fetchall()]
-    if "payment_number" not in columnas:
-        cursor.execute("ALTER TABLE syna_payments ADD COLUMN payment_number TEXT")
+    # TABLA 4 (creada antes que las de mapping, más abajo, porque a
+    # diferencia de SQLite, Postgres exige que una tabla referenciada por
+    # FOREIGN KEY ya exista en el momento del CREATE TABLE): Notas de crédito
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS syna_credits (
+        id SERIAL PRIMARY KEY,
+        credit_number TEXT UNIQUE NOT NULL,
+        amount DOUBLE PRECISION NOT NULL,
+        credit_date TEXT,
+        used INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        billing_month TEXT,
+        category TEXT,
+        due_date TEXT
+    )
+    """)
 
     # TABLA 3: Mapping entre facturas y pagos
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_invoice_payment_mapping (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         invoice_id INTEGER NOT NULL,
         payment_id INTEGER NOT NULL,
-        amount_applied REAL NOT NULL,
+        amount_applied DOUBLE PRECISION NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (invoice_id) REFERENCES syna_invoices(id),
         FOREIGN KEY (payment_id) REFERENCES syna_payments(id)
@@ -97,10 +130,10 @@ def inicializar_db():
     # en lugar de saldarlas del todo.
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_credit_payment_mapping (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         credit_id INTEGER NOT NULL,
         payment_id INTEGER NOT NULL,
-        amount_applied REAL NOT NULL,
+        amount_applied DOUBLE PRECISION NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (credit_id) REFERENCES syna_credits(id),
         FOREIGN KEY (payment_id) REFERENCES syna_payments(id)
@@ -117,11 +150,11 @@ def inicializar_db():
     # monto de esa ODP.
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_invoice_credit_mapping (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         invoice_id INTEGER NOT NULL,
         credit_id INTEGER NOT NULL,
         payment_id INTEGER,
-        amount_applied REAL NOT NULL,
+        amount_applied DOUBLE PRECISION NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (invoice_id) REFERENCES syna_invoices(id),
         FOREIGN KEY (credit_id) REFERENCES syna_credits(id),
@@ -129,38 +162,12 @@ def inicializar_db():
     )
     """)
 
-    # TABLA 4: Notas de crédito
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS syna_credits (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        credit_number TEXT UNIQUE NOT NULL,
-        amount REAL NOT NULL,
-        credit_date TEXT,
-        used INTEGER DEFAULT 0,
-        created_at TEXT NOT NULL,
-        created_by TEXT NOT NULL,
-        billing_month TEXT,
-        category TEXT,
-        UNIQUE(credit_number)
-    )
-    """)
-
-    # Migración: agregar billing_month/category si la tabla ya existía sin esas columnas
-    cursor.execute("PRAGMA table_info(syna_credits)")
-    columnas_cred = [c[1] for c in cursor.fetchall()]
-    if "billing_month" not in columnas_cred:
-        cursor.execute("ALTER TABLE syna_credits ADD COLUMN billing_month TEXT")
-    if "category" not in columnas_cred:
-        cursor.execute("ALTER TABLE syna_credits ADD COLUMN category TEXT")
-    if "due_date" not in columnas_cred:
-        cursor.execute("ALTER TABLE syna_credits ADD COLUMN due_date TEXT")
-
     # TABLA 5: Auditoría
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS syna_audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         action TEXT NOT NULL,
-        user TEXT NOT NULL,
+        "user" TEXT NOT NULL,
         timestamp TEXT NOT NULL,
         details TEXT
     )
@@ -185,11 +192,12 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
         cursor.execute("""
         INSERT INTO syna_invoices
         (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, created_at, created_by, notes, billing_month, category)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
         """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, now, created_by, notes, billing_month, category))
 
+        invoice_id = cursor.fetchone()["id"]
         conn.commit()
-        invoice_id = cursor.lastrowid
 
         # Registrar en auditoría
         registrar_auditoria(conn, created_by, "invoice_added", {
@@ -199,8 +207,8 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
         })
 
         return invoice_id
-    except sqlite3.IntegrityError as e:
-        conn.close()
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
         raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
     finally:
         conn.close()
@@ -249,14 +257,14 @@ def calcular_aplicado_factura(invoice_id):
     cursor.execute("""
     SELECT COALESCE(SUM(amount_applied), 0) as total_applied
     FROM syna_invoice_payment_mapping
-    WHERE invoice_id = ?
+    WHERE invoice_id = %s
     """, (invoice_id,))
     total_efectivo = cursor.fetchone()["total_applied"]
 
     cursor.execute("""
     SELECT COALESCE(SUM(amount_applied), 0) as total_applied
     FROM syna_invoice_credit_mapping
-    WHERE invoice_id = ?
+    WHERE invoice_id = %s
     """, (invoice_id,))
     total_nc_aplicada = cursor.fetchone()["total_applied"]
 
@@ -271,7 +279,7 @@ def calcular_saldo_factura(invoice_id):
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT amount FROM syna_invoices WHERE id = ?", (invoice_id,))
+    cursor.execute("SELECT amount FROM syna_invoices WHERE id = %s", (invoice_id,))
     inv = cursor.fetchone()
     conn.close()
 
@@ -324,20 +332,20 @@ def eliminar_invoice(invoice_id):
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT COUNT(*) as count FROM syna_invoice_payment_mapping WHERE invoice_id = ?
+    SELECT COUNT(*) as count FROM syna_invoice_payment_mapping WHERE invoice_id = %s
     """, (invoice_id,))
     if cursor.fetchone()["count"] > 0:
         conn.close()
         raise ValueError("No se puede eliminar factura con pagos asociados")
 
     cursor.execute("""
-    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE invoice_id = ?
+    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE invoice_id = %s
     """, (invoice_id,))
     if cursor.fetchone()["count"] > 0:
         conn.close()
         raise ValueError("No se puede eliminar factura con notas de crédito aplicadas")
 
-    cursor.execute("DELETE FROM syna_invoices WHERE id = ?", (invoice_id,))
+    cursor.execute("DELETE FROM syna_invoices WHERE id = %s", (invoice_id,))
     conn.commit()
     conn.close()
 
@@ -351,9 +359,9 @@ def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_dat
     try:
         cursor.execute("""
         UPDATE syna_invoices
-        SET invoice_number = ?, amount = ?, invoice_date = ?, due_date = ?,
-            fixed_stamps = ?, email_link = ?, notes = ?, billing_month = ?, category = ?
-        WHERE id = ?
+        SET invoice_number = %s, amount = %s, invoice_date = %s, due_date = %s,
+            fixed_stamps = %s, email_link = %s, notes = %s, billing_month = %s, category = %s
+        WHERE id = %s
         """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, notes,
               billing_month, category, invoice_id))
 
@@ -363,8 +371,8 @@ def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_dat
             "invoice_number": invoice_number,
             "amount": amount
         })
-    except sqlite3.IntegrityError as e:
-        conn.close()
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
         raise ValueError(f"Número de factura duplicado: {invoice_number}") from e
     finally:
         conn.close()
@@ -382,11 +390,12 @@ def crear_payment(payment_date, amount, payer, description="", created_by="Dai",
     now = datetime.now().isoformat()
     cursor.execute("""
     INSERT INTO syna_payments (payment_number, payment_date, amount, payer, description, created_at, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    RETURNING id
     """, (payment_number, payment_date, amount, payer, description, now, created_by))
 
+    payment_id = cursor.fetchone()["id"]
     conn.commit()
-    payment_id = cursor.lastrowid
 
     # Registrar en auditoría
     registrar_auditoria(conn, created_by, "payment_registered", {
@@ -421,7 +430,7 @@ def obtener_payment(payment_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM syna_payments WHERE id = ?", (payment_id,))
+    cursor.execute("SELECT * FROM syna_payments WHERE id = %s", (payment_id,))
     result = cursor.fetchone()
     conn.close()
 
@@ -446,7 +455,7 @@ def crear_mapping(invoice_id, payment_id, amount_applied):
     now = datetime.now().isoformat()
     cursor.execute("""
     INSERT INTO syna_invoice_payment_mapping (invoice_id, payment_id, amount_applied, created_at)
-    VALUES (?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s)
     """, (invoice_id, payment_id, amount_applied, now))
 
     conn.commit()
@@ -462,7 +471,7 @@ def obtener_mappings_por_payment(payment_id):
     SELECT m.id, m.invoice_id, m.payment_id, m.amount_applied, i.invoice_number, i.amount
     FROM syna_invoice_payment_mapping m
     JOIN syna_invoices i ON m.invoice_id = i.id
-    WHERE m.payment_id = ?
+    WHERE m.payment_id = %s
     """, (payment_id,))
 
     mappings = [dict(row) for row in cursor.fetchall()]
@@ -525,7 +534,7 @@ def eliminar_mapping(mapping_id):
     """Elimina un mapping."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE id = ?", (mapping_id,))
+    cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
     conn.close()
 
@@ -545,7 +554,7 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
     now = datetime.now().isoformat()
     cursor.execute("""
     INSERT INTO syna_credit_payment_mapping (credit_id, payment_id, amount_applied, created_at)
-    VALUES (?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s)
     """, (credit_id, payment_id, amount_applied, now))
 
     conn.commit()
@@ -573,7 +582,7 @@ def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_
     now = datetime.now().isoformat()
     cursor.execute("""
     INSERT INTO syna_invoice_credit_mapping (invoice_id, credit_id, payment_id, amount_applied, created_at)
-    VALUES (?, ?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s, %s)
     """, (invoice_id, credit_id, payment_id, amount_applied, now))
 
     conn.commit()
@@ -584,7 +593,7 @@ def eliminar_credit_mapping(mapping_id):
     """Elimina un mapping de NC."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE id = ?", (mapping_id,))
+    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE id = %s", (mapping_id,))
     conn.commit()
     conn.close()
 
@@ -602,11 +611,12 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
         now = datetime.now().isoformat()
         cursor.execute("""
         INSERT INTO syna_credits (credit_number, amount, credit_date, used, created_at, created_by, billing_month, category, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
         """, (credit_number, amount, credit_date, 1 if used else 0, now, created_by, billing_month, category, due_date))
 
+        credit_id = cursor.fetchone()["id"]
         conn.commit()
-        credit_id = cursor.lastrowid
 
         registrar_auditoria(conn, created_by, "credit_added", {
             "credit_number": credit_number,
@@ -614,8 +624,8 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
         })
 
         return credit_id
-    except sqlite3.IntegrityError as e:
-        conn.close()
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
         raise ValueError(f"Número de NC duplicado: {credit_number}") from e
     finally:
         conn.close()
@@ -634,18 +644,18 @@ def calcular_saldo_credit(credit_id):
     cursor.execute("""
     SELECT COALESCE(SUM(amount_applied), 0) as total_applied
     FROM syna_invoice_credit_mapping
-    WHERE credit_id = ?
+    WHERE credit_id = %s
     """, (credit_id,))
     total_nueva = cursor.fetchone()["total_applied"]
 
     cursor.execute("""
     SELECT COALESCE(SUM(amount_applied), 0) as total_applied
     FROM syna_credit_payment_mapping
-    WHERE credit_id = ?
+    WHERE credit_id = %s
     """, (credit_id,))
     total_vieja = cursor.fetchone()["total_applied"]
 
-    cursor.execute("SELECT amount FROM syna_credits WHERE id = ?", (credit_id,))
+    cursor.execute("SELECT amount FROM syna_credits WHERE id = %s", (credit_id,))
     cr = cursor.fetchone()
     conn.close()
 
@@ -680,7 +690,7 @@ def marcar_credit_usado(credit_id, usado=True):
     cursor = conn.cursor()
 
     cursor.execute("""
-    UPDATE syna_credits SET used = ? WHERE id = ?
+    UPDATE syna_credits SET used = %s WHERE id = %s
     """, (1 if usado else 0, credit_id))
 
     conn.commit()
@@ -693,20 +703,20 @@ def eliminar_credit(credit_id):
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE credit_id = ?
+    SELECT COUNT(*) as count FROM syna_invoice_credit_mapping WHERE credit_id = %s
     """, (credit_id,))
     if cursor.fetchone()["count"] > 0:
         conn.close()
         raise ValueError("No se puede eliminar una NC aplicada a una factura")
 
     cursor.execute("""
-    SELECT COUNT(*) as count FROM syna_credit_payment_mapping WHERE credit_id = ?
+    SELECT COUNT(*) as count FROM syna_credit_payment_mapping WHERE credit_id = %s
     """, (credit_id,))
     if cursor.fetchone()["count"] > 0:
         conn.close()
         raise ValueError("No se puede eliminar una NC con pagos aplicados")
 
-    cursor.execute("DELETE FROM syna_credits WHERE id = ?", (credit_id,))
+    cursor.execute("DELETE FROM syna_credits WHERE id = %s", (credit_id,))
     conn.commit()
     conn.close()
 
@@ -719,8 +729,8 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
     try:
         cursor.execute("""
         UPDATE syna_credits
-        SET credit_number = ?, amount = ?, credit_date = ?, used = ?, billing_month = ?, category = ?, due_date = ?
-        WHERE id = ?
+        SET credit_number = %s, amount = %s, credit_date = %s, used = %s, billing_month = %s, category = %s, due_date = %s
+        WHERE id = %s
         """, (credit_number, amount, credit_date, 1 if used else 0, billing_month, category, due_date, credit_id))
 
         conn.commit()
@@ -729,8 +739,8 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False,
             "credit_number": credit_number,
             "amount": amount
         })
-    except sqlite3.IntegrityError as e:
-        conn.close()
+    except psycopg2.IntegrityError as e:
+        conn.rollback()
         raise ValueError(f"Número de NC duplicado: {credit_number}") from e
     finally:
         conn.close()
@@ -743,10 +753,10 @@ def eliminar_payment(payment_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = ?", (payment_id,))
-    cursor.execute("DELETE FROM syna_invoice_credit_mapping WHERE payment_id = ?", (payment_id,))
-    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE payment_id = ?", (payment_id,))
-    cursor.execute("DELETE FROM syna_payments WHERE id = ?", (payment_id,))
+    cursor.execute("DELETE FROM syna_invoice_payment_mapping WHERE payment_id = %s", (payment_id,))
+    cursor.execute("DELETE FROM syna_invoice_credit_mapping WHERE payment_id = %s", (payment_id,))
+    cursor.execute("DELETE FROM syna_credit_payment_mapping WHERE payment_id = %s", (payment_id,))
+    cursor.execute("DELETE FROM syna_payments WHERE id = %s", (payment_id,))
     conn.commit()
     conn.close()
 
@@ -763,8 +773,8 @@ def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, 
 
     cursor.execute("""
     UPDATE syna_payments
-    SET payment_number = ?, payment_date = ?, amount = ?, payer = ?, description = ?
-    WHERE id = ?
+    SET payment_number = %s, payment_date = %s, amount = %s, payer = %s, description = %s
+    WHERE id = %s
     """, (payment_number, payment_date, amount, payer, description, payment_id))
 
     conn.commit()
@@ -853,7 +863,7 @@ def obtener_proximos_vencimientos(dias=30):
     cursor.execute("""
     SELECT i.id, i.invoice_number, i.amount, i.due_date, i.created_at
     FROM syna_invoices i
-    WHERE i.due_date BETWEEN ? AND ?
+    WHERE i.due_date BETWEEN %s AND %s
     ORDER BY i.due_date ASC
     """, (hoy, futura))
 
@@ -880,8 +890,8 @@ def registrar_auditoria(conn, user, action, details):
     now = datetime.now().isoformat()
 
     cursor.execute("""
-    INSERT INTO syna_audit_log (action, user, timestamp, details)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO syna_audit_log (action, "user", timestamp, details)
+    VALUES (%s, %s, %s, %s)
     """, (action, user, now, json.dumps(details)))
 
     conn.commit()
@@ -893,7 +903,7 @@ def obtener_audit_log():
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, action, user, timestamp, details
+    SELECT id, action, "user", timestamp, details
     FROM syna_audit_log
     ORDER BY timestamp DESC
     """)
@@ -914,8 +924,9 @@ def obtener_audit_log():
 
 def exportar_backup_excel():
     """Genera un backup completo en Excel (todas las tablas, una hoja por
-    tabla) en memoria, para descargar desde la UI. No depende del estado
-    del servidor: el usuario se lleva una copia propia de los datos."""
+    tabla) en memoria, para descargar desde la UI. Es un resguardo manual
+    adicional; la copia durable de verdad es la base Postgres externa en
+    sí misma, que ya no depende del contenedor de la app."""
     conn = get_connection()
 
     hojas = {
@@ -925,33 +936,22 @@ def exportar_backup_excel():
         "Aplicaciones (FC-OP)": "SELECT * FROM syna_invoice_payment_mapping ORDER BY id",
         "Aplicaciones (NC-FC)": "SELECT * FROM syna_invoice_credit_mapping ORDER BY id",
         "Aplicaciones (NC-OP legacy)": "SELECT * FROM syna_credit_payment_mapping ORDER BY id",
-        "Auditoria": "SELECT * FROM syna_audit_log ORDER BY id",
+        "Auditoria": 'SELECT * FROM syna_audit_log ORDER BY id',
     }
 
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         for nombre_hoja, query in hojas.items():
-            df = pd.read_sql_query(query, conn)
+            with warnings.catch_warnings():
+                # pandas advierte que psycopg2 no es su conector "oficial"
+                # (prefiere SQLAlchemy); funciona igual, es solo ruido.
+                warnings.simplefilter("ignore", UserWarning)
+                df = pd.read_sql_query(query, conn)
             df.to_excel(writer, sheet_name=nombre_hoja, index=False)
 
     conn.close()
     buffer.seek(0)
     return buffer.getvalue()
-
-
-def crear_backup_archivo(destino_dir=None):
-    """Copia el archivo .db completo a una carpeta de backups locales con
-    timestamp en el nombre. Complementa exportar_backup_excel(): esta
-    copia preserva el formato SQLite tal cual para una restauración 1:1."""
-    if destino_dir is None:
-        destino_dir = DB_PATH.parent / "backups"
-    destino_dir = Path(destino_dir)
-    destino_dir.mkdir(exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    destino = destino_dir / f"syna_tracking_{timestamp}.db"
-    shutil.copy2(DB_PATH, destino)
-    return destino
 
 
 # ============================================
@@ -960,4 +960,4 @@ def crear_backup_archivo(destino_dir=None):
 
 if __name__ == "__main__":
     inicializar_db()
-    print(f"✅ Base de datos SYNA creada en: {DB_PATH}")
+    print("✅ Base de datos SYNA inicializada en el Postgres externo configurado (SYNA_DATABASE_URL)")
