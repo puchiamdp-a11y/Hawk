@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
     crear_invoice, obtener_invoices, eliminar_invoice, actualizar_invoice,
     crear_payment, obtener_payments, obtener_payment, eliminar_payment, actualizar_payment,
-    crear_mapping, obtener_mappings_aplicados, crear_invoice_credit_mapping, obtener_aplicaciones_nc,
+    crear_mapping, crear_invoice_credit_mapping,
     crear_credit, obtener_credits, eliminar_credit, actualizar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
     obtener_audit_log, exportar_backup_excel, TOLERANCIA_SALDO
@@ -1214,107 +1214,85 @@ def _tab_balance():
     if balance["pagos_sin_aplicar"] > 0:
         st.markdown(f'<div class="syna-alert">Hay ${balance["pagos_sin_aplicar"]:,.2f} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
 
-    # Pagos aplicados a facturas, filtrados por la misma fecha que el
-    # resto (fecha del pago, no de la factura): sin esto el libro diario
-    # no restaba los pagos y su saldo final no coincidía con el de las
-    # tarjetas de arriba (que sí los restan).
-    aplicados_filtrados = obtener_mappings_aplicados()
-    if fecha_desde:
-        aplicados_filtrados = [a for a in aplicados_filtrados if a["payment_date"] and a["payment_date"] >= fecha_desde.isoformat()]
-    if fecha_hasta:
-        aplicados_filtrados = [a for a in aplicados_filtrados if a["payment_date"] and a["payment_date"] <= fecha_hasta.isoformat()]
-
-    # NC aplicadas a facturas: entran al libro diario con la fecha en
-    # que se APLICARON (created_at del mapping), no la de emisión de la
-    # NC - una NC sin aplicar todavía no genera ningún movimiento acá,
-    # coherente con que tampoco resta del saldo hasta ese momento.
-    nc_aplicadas_filtradas = obtener_aplicaciones_nc()
-    if fecha_desde:
-        nc_aplicadas_filtradas = [a for a in nc_aplicadas_filtradas if a["created_at"] and a["created_at"] >= fecha_desde.isoformat()]
-    if fecha_hasta:
-        nc_aplicadas_filtradas = [a for a in nc_aplicadas_filtradas if a["created_at"] and a["created_at"][:10] <= fecha_hasta.isoformat()]
-
+    # Vista de triage en vez de un libro contable cronológico: separa lo
+    # que necesita atención (saldo pendiente) de lo que ya está resuelto,
+    # en vez de un listado de movimientos con saldo acumulado corrido -
+    # ese acumulado, con miles de comprobantes reales, da un número
+    # gigante sin relación directa con "cuánto falta cobrar hoy", y las
+    # etiquetas tipo "002-0429 → 005-03715" no se entienden de un vistazo.
     st.markdown("---")
-    st.markdown("#### Libro diario")
+    st.markdown("#### Estado de facturas y notas de crédito")
 
-    if inv_filtradas or aplicados_filtrados or nc_aplicadas_filtradas:
-        movimientos = []
-        for inv in inv_filtradas:
-            movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"],
-                                 _fmt_mes_facturacion(inv.get("billing_month")), inv.get("category") or "—"))
-        for ap in nc_aplicadas_filtradas:
-            etiqueta = f"{ap['credit_number']} → {ap['invoice_number']}"
-            movimientos.append((ap.get("created_at") or "", "haber", etiqueta, ap["amount_applied"], "—", "—"))
-        for ap in aplicados_filtrados:
-            numero_pago = ap.get("payment_number") or f"ODP-{ap['payment_id']}"
-            etiqueta = f"{numero_pago} → {ap['invoice_number']}"
-            movimientos.append((ap.get("payment_date") or "", "haber", etiqueta, ap["amount_applied"], "—", "—"))
+    pendientes_fc = [i for i in inv_filtradas if i["estado"] != "Pagada"]
+    resueltas_fc = [i for i in inv_filtradas if i["estado"] == "Pagada"]
+    pendientes_nc = [c for c in credits_filtrados if c["saldo"] > TOLERANCIA_SALDO]
+    resueltas_nc = [c for c in credits_filtrados if c["saldo"] <= TOLERANCIA_SALDO]
 
-        # El saldo acumulado se calcula UNA VEZ en orden cronológico real
-        # (así tiene sentido contable) y queda fijo en cada fila; el
-        # usuario puede después ordenar la tabla por cualquier columna
-        # (clickeando el encabezado) sin que ese valor se recalcule.
-        movimientos.sort(key=lambda m: m[0])
+    total_pendientes = len(pendientes_fc) + len(pendientes_nc)
+    total_resueltas = len(resueltas_fc) + len(resueltas_nc)
 
-        filas = []
-        saldo = 0
-        for fecha, tipo, numero, monto, mes_fact, categoria in movimientos:
-            # 0.0 en vez de NaN a propósito: en esta versión de Streamlit,
-            # st.dataframe muestra el texto literal "None" para celdas NaN
-            # sin importar el format (probado con y sin Styler, con varios
-            # formatos incluyendo el default) - es una limitación del
-            # componente, no de este código. Con 0.0 + estilo "color:
-            # white" para esas celdas, la celda vacía queda visualmente en
-            # blanco en vez de mostrar "None".
-            if tipo == "debe":
-                saldo += monto
-                debe, haber = monto, 0.0
-            else:
-                saldo -= monto
-                debe, haber = 0.0, monto
-            filas.append({
-                "Fecha": datetime.fromisoformat(fecha[:10]).date() if fecha else None,
-                "Comprobante": numero,
-                "Mes facturación": mes_fact,
-                "Categoría": categoria,
-                "Debe": debe,
-                "Haber": haber,
-                "Saldo acumulado": saldo,
-            })
+    def _fila_fc(inv):
+        return {
+            "Comprobante": inv["invoice_number"], "Tipo": "Factura",
+            "Mes facturación": _fmt_mes_facturacion(inv.get("billing_month")),
+            "Categoría": inv.get("category") or "—",
+            "Monto": inv["amount"], "Saldo pendiente": max(inv["saldo"], 0),
+            "Estado": inv["estado"] if inv["estado"] != "Parcialmente pagada" else "Parcial",
+        }
 
-        df_libro = pd.DataFrame(filas)
+    def _fila_nc(cr, pendiente):
+        return {
+            "Comprobante": cr["credit_number"], "Tipo": "Nota de Crédito",
+            "Mes facturación": _fmt_mes_facturacion(cr.get("billing_month")),
+            "Categoría": cr.get("category") or "—",
+            "Monto": cr["amount"],
+            "Saldo pendiente": max(cr["saldo"], 0) if pendiente else 0,
+            "Estado": ("Disponible" if cr["saldo"] >= cr["amount"] - 0.01 else "Parcial") if pendiente else "Aplicada",
+        }
 
-        def _colorear_debe_haber(row):
-            estilos = [""] * len(row)
-            idx_debe = row.index.get_loc("Debe")
-            idx_haber = row.index.get_loc("Haber")
-            if row["Debe"] != 0:
-                estilos[idx_debe] = "background-color: #F0FDF4; color: #15803D; font-weight: 700;"
-            else:
-                estilos[idx_debe] = "color: white;"
-            if row["Haber"] != 0:
-                estilos[idx_haber] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 700;"
-            else:
-                estilos[idx_haber] = "color: white;"
-            return estilos
+    def _colorear_estado_triage(row):
+        estilos = [""] * len(row)
+        idx = row.index.get_loc("Estado")
+        estado = row["Estado"]
+        if estado in ("Pagada", "Aplicada"):
+            estilos[idx] = "background-color: #F0FDF4; color: #15803D; font-weight: 600;"
+        elif estado in ("Impaga", "Disponible"):
+            estilos[idx] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 600;"
+        else:
+            estilos[idx] = "background-color: #FFFBEB; color: #B45309; font-weight: 600;"
+        return estilos
 
+    st.markdown(f"##### ⚠️ Requieren atención ({total_pendientes})")
+    if total_pendientes:
+        filas_pend = [_fila_fc(i) for i in pendientes_fc] + [_fila_nc(c, True) for c in pendientes_nc]
+        df_pend = pd.DataFrame(filas_pend).sort_values("Saldo pendiente", ascending=False)
         st.dataframe(
-            df_libro.style.apply(_colorear_debe_haber, axis=1),
+            df_pend.style.apply(_colorear_estado_triage, axis=1),
             column_config={
-                "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-                "Debe": st.column_config.NumberColumn("Debe", format="$ %,.2f"),
-                "Haber": st.column_config.NumberColumn("Haber", format="$ %,.2f"),
-                "Saldo acumulado": st.column_config.NumberColumn("Saldo acumulado", format="$ %,.2f"),
+                "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+                "Saldo pendiente": st.column_config.NumberColumn("Saldo pendiente", format="$ %,.2f"),
             },
             hide_index=True,
             use_container_width=True,
         )
-        st.caption("Hacé click en el encabezado de una columna para ordenar la tabla por ella.")
-
-        if abs(saldo - saldo_view) > 0.01:
-            st.warning(f"El saldo acumulado del libro diario (${saldo:,.2f}) no coincide con el total a pagar de arriba (${saldo_view:,.2f}). Puede deberse a un pago aplicado fuera del rango de fechas filtrado.")
     else:
-        st.info("Sin comprobantes para los filtros seleccionados.")
+        st.success("No hay facturas ni NC pendientes en este período. Todo al día.")
+
+    with st.expander(f"✅ Ya están OK ({total_resueltas})"):
+        if total_resueltas:
+            filas_ok = [_fila_fc(i) for i in resueltas_fc] + [_fila_nc(c, False) for c in resueltas_nc]
+            df_ok = pd.DataFrame(filas_ok)
+            st.dataframe(
+                df_ok.style.apply(_colorear_estado_triage, axis=1),
+                column_config={
+                    "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+                    "Saldo pendiente": st.column_config.NumberColumn("Saldo pendiente", format="$ %,.2f"),
+                },
+                hide_index=True,
+                use_container_width=True,
+            )
+        else:
+            st.caption("Todavía no hay nada resuelto en este período.")
 
     st.markdown("---")
     st.markdown("#### Próximos vencimientos (30 días)")
