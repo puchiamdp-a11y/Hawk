@@ -286,6 +286,18 @@ def calcular_saldo_factura(invoice_id):
 # de resto que no tienen ningún efecto práctico.
 TOLERANCIA_SALDO = 10
 
+# Margen para las validaciones "monto a aplicar > saldo disponible".
+# Restar floats en cascada (amount - efectivo - nc_aplicada, sumado en
+# varias filas) deja errores de precisión binaria típicos de Python,
+# por ejemplo saldo_factura = 5229.919999999998 en vez de 5229.92 -
+# matemáticamente el mismo número, pero una comparación estricta
+# ('>' sin margen) los trata como distintos y rechaza un monto que en
+# los hechos es exactamente el saldo. TOLERANCIA_SALDO (10) es
+# demasiado grande para esto: permitiría aplicar de más sin que nadie
+# lo pida. Este margen es de centavos, solo para absorber el ruido de
+# redondeo, no para tolerar una diferencia real.
+EPSILON_REDONDEO = 0.01
+
 
 def determinar_estado_factura(amount, saldo):
     """Determina estado: Pagada / Parcialmente pagada / Impaga."""
@@ -418,7 +430,7 @@ def crear_mapping(invoice_id, payment_id, amount_applied):
 
     # Validar que el monto no sea mayor al saldo de la factura
     saldo = calcular_saldo_factura(invoice_id)
-    if amount_applied > saldo:
+    if amount_applied > saldo + EPSILON_REDONDEO:
         conn.close()
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo pendiente ({saldo})")
 
@@ -517,7 +529,7 @@ def crear_credit_mapping(credit_id, payment_id, amount_applied):
     cursor = conn.cursor()
 
     saldo = calcular_saldo_credit(credit_id)
-    if amount_applied > saldo:
+    if amount_applied > saldo + EPSILON_REDONDEO:
         conn.close()
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo pendiente ({saldo})")
 
@@ -540,12 +552,12 @@ def crear_invoice_credit_mapping(invoice_id, credit_id, amount_applied, payment_
     cursor = conn.cursor()
 
     saldo_factura = calcular_saldo_factura(invoice_id)
-    if amount_applied > saldo_factura:
+    if amount_applied > saldo_factura + EPSILON_REDONDEO:
         conn.close()
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la factura ({saldo_factura})")
 
     saldo_credit = calcular_saldo_credit(credit_id)
-    if amount_applied > saldo_credit:
+    if amount_applied > saldo_credit + EPSILON_REDONDEO:
         conn.close()
         raise ValueError(f"Monto a aplicar ({amount_applied}) excede saldo de la NC ({saldo_credit})")
 
