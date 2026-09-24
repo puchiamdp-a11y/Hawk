@@ -5,10 +5,11 @@ __pycache__/
 .env
 *.xlsx
 
-# La base de datos de producción NUNCA debe versionarse: si vive en git,
-# cada push de código la resetea a la última copia comiteada y borra los
-# datos reales cargados en el servidor entre deploys. Ver backups/ para
-# resguardos exportados manualmente.
+# SYNA ya no persiste en un archivo SQLite local (ver SYNA_TRACKING_README.md,
+# sección "Persistencia y Backup": ahora usa un Postgres externo vía
+# SYNA_DATABASE_URL). Estas entradas quedan por si se usa un .db local
+# para testing o para una migración puntual - nunca debe versionarse una
+# base de datos real.
 syna_tracking.db
 *.db-journal
 *.db-wal
