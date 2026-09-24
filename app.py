@@ -2,8 +2,18 @@ import streamlit as st
 import pandas as pd
 import requests
 from io import BytesIO
-from syna_db import inicializar_db
-from syna_ui import pantalla_syna_admin, pantalla_syna_viewer, pantalla_syna_con_autenticacion
+
+# Import defensivo: si falta una dependencia (ej. psycopg2 recién agregado
+# a requirements.txt y todavía no instalado en el servidor) o la base de
+# SYNA no está configurada, esto NO debe tirar abajo el resto de Hawk
+# (Zeus, emisión, etc.) - solo la pantalla de Cobranzas SYNA debe verse
+# afectada.
+try:
+    from syna_db import inicializar_db
+    from syna_ui import pantalla_syna_admin, pantalla_syna_viewer, pantalla_syna_con_autenticacion
+    _SYNA_IMPORT_ERROR = None
+except Exception as _e:
+    _SYNA_IMPORT_ERROR = _e
 
 # ============================================
 # CONFIGURACIÓN
@@ -442,7 +452,15 @@ st.markdown("""
 query_params = st.query_params
 if query_params.get("role") == "viewer":
     # Modo Cintia (viewer) - SOLO BALANCE
-    inicializar_db()
+    if _SYNA_IMPORT_ERROR is not None:
+        st.error(f"No se pudo cargar el módulo SYNA: {_SYNA_IMPORT_ERROR}")
+        st.stop()
+
+    try:
+        inicializar_db()
+    except Exception as _e:
+        st.error(f"No se pudo conectar a la base de datos de SYNA: {_e}")
+        st.stop()
 
     if "syna_authenticated" not in st.session_state:
         st.session_state.syna_authenticated = False
@@ -1385,8 +1403,15 @@ elif pantalla_actual == "Proveedores":
 # PANTALLA 5.5: COBRANZAS SYNA
 # ============================================
 elif pantalla_actual == "Cobranzas SYNA":
-    inicializar_db()
-    pantalla_syna_admin()
+    if _SYNA_IMPORT_ERROR is not None:
+        st.error(f"No se pudo cargar el módulo SYNA: {_SYNA_IMPORT_ERROR}")
+    else:
+        try:
+            inicializar_db()
+        except Exception as _e:
+            st.error(f"No se pudo conectar a la base de datos de SYNA: {_e}")
+        else:
+            pantalla_syna_admin()
 
 # ============================================
 # PANTALLA 6: POST EMISIÓN
