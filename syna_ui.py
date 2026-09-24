@@ -527,9 +527,10 @@ def _tab_comprobantes():
         # todo (Pagada/Aplicada), ámbar = parcial, rojo = todavía nada
         # (Impaga/Disponible). Antes "Disponible" estaba en verde, lo
         # mismo que "Aplicada" - dos estados opuestos con el mismo color.
-        if cr["saldo"] <= TOLERANCIA_SALDO:
+        _nc_aplicado = cr["amount"] - cr["saldo"]
+        if _nc_aplicado > 0 and cr["saldo"] <= TOLERANCIA_SALDO:
             estado, clase = "Aplicada", "syna-badge-verde"
-        elif cr["saldo"] < cr["amount"]:
+        elif _nc_aplicado > 0:
             estado, clase = "Parcial", "syna-badge-ambar"
         else:
             estado, clase = "Disponible", "syna-badge-rojo"
@@ -1057,7 +1058,13 @@ def _form_odp():
                     with col3:
                         st.write(f"NC ${nc_de_esta_fc:,.0f} + Efectivo ${ef_de_esta_fc:,.0f}")
                     with col4:
-                        st.markdown("✅ **Saldada**" if saldo_final <= TOLERANCIA_SALDO else f"⚠️ Queda ${saldo_final:,.0f}")
+                        # Requiere que se haya aplicado algo (no solo que
+                        # el saldo sea chico): una factura seleccionada
+                        # pero sin nada asignado (el efectivo se agotó
+                        # antes en la cascada) no debe leerse "Saldada".
+                        aplicado_a_esta_fc = nc_de_esta_fc + ef_de_esta_fc
+                        saldada = aplicado_a_esta_fc > 0 and saldo_final <= TOLERANCIA_SALDO
+                        st.markdown("✅ **Saldada**" if saldada else f"⚠️ Queda ${saldo_final:,.0f}")
 
                 for nc in nc_seleccionadas:
                     aplicado_de_esta_nc = sum(a["monto"] for a in aplicaciones_nc if a["nc_id"] == nc["id"])
@@ -1168,15 +1175,16 @@ def _tab_balance():
     # general: si hay un filtro activo, se recalculan sobre inv_filtradas
     # en vez de usar el balance global.
     total_facturado_view = sum(i["amount"] for i in inv_filtradas)
-    # "Pagado" reúne efectivo y NC aplicada como dos formas de lo mismo:
-    # una NC recién cargada sin aplicar a ninguna factura NO resta acá
-    # todavía (antes se restaba el 100% de toda NC emitida apenas se
-    # cargaba, estuviera aplicada o no).
-    total_efectivo_view = sum(i["efectivo_aplicado"] for i in inv_filtradas)
-    total_nc_aplicada_view = sum(i["nc_aplicada"] for i in inv_filtradas)
-    total_pagado_view = total_efectivo_view + total_nc_aplicada_view
+    # "FC sin abonar" usa el saldo YA neteado de cada factura (que
+    # calcular_saldo_factura ya calcula restando efectivo Y NC aplicada
+    # una sola vez cada uno) - sumarlo acá no vuelve a tocar la NC para
+    # nada, así que no hay forma de que quede descontada dos veces. La
+    # tarjeta anterior fusionaba "efectivo + NC aplicada" en un número
+    # que no se podía verificar a simple vista contra el total de las
+    # órdenes de pago; esta versión evita esa mezcla.
+    total_fc_pendiente_view = sum(max(i["saldo"], 0) for i in inv_filtradas)
     total_nc_disponible_view = sum(c["saldo"] for c in credits_filtrados)
-    saldo_view = total_facturado_view - total_pagado_view
+    saldo_view = total_fc_pendiente_view - total_nc_disponible_view
 
     st.markdown("#### Estado general de cuenta")
     if hay_filtro_activo:
@@ -1187,7 +1195,7 @@ def _tab_balance():
     # demás es el detalle de cómo se compone ese número.
     color_class = "negative" if saldo_view > 0 else "positive"
     st.markdown(f"""<div class="syna-card syna-card-total">
-        <div class="syna-card-label">Total a pagar por SYNA (facturado − pagado)</div>
+        <div class="syna-card-label">Pendiente a abonar por SYNA (FC sin abonar − NC disponibles)</div>
         <div class="syna-card-value-big {color_class}">${saldo_view:,.0f}</div>
     </div>""", unsafe_allow_html=True)
 
@@ -1201,15 +1209,15 @@ def _tab_balance():
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Menos: pagado (efectivo + NC aplicada)</div>
-            <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
+            <div class="syna-card-label">FC sin abonar (saldo pendiente)</div>
+            <div class="syna-card-value positive">${total_fc_pendiente_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
             <div class="syna-card-label">NC disponible (sin aplicar todavía)</div>
             <div class="syna-card-value neutral">${total_nc_disponible_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
-    st.caption("Una NC recién cargada no reduce el saldo hasta que se aplica a una factura (al registrar una ODP en la pestaña Comprobantes). Mientras tanto queda acá como crédito disponible.")
+    st.caption("Una NC recién cargada no reduce el pendiente hasta que se aplica a una factura (al registrar una ODP en la pestaña Comprobantes). Mientras tanto queda acá como crédito disponible.")
 
     if balance["pagos_sin_aplicar"] > 0:
         st.markdown(f'<div class="syna-alert">Hay ${balance["pagos_sin_aplicar"]:,.2f} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
@@ -1225,8 +1233,11 @@ def _tab_balance():
 
     pendientes_fc = [i for i in inv_filtradas if i["estado"] != "Pagada"]
     resueltas_fc = [i for i in inv_filtradas if i["estado"] == "Pagada"]
-    pendientes_nc = [c for c in credits_filtrados if c["saldo"] > TOLERANCIA_SALDO]
-    resueltas_nc = [c for c in credits_filtrados if c["saldo"] <= TOLERANCIA_SALDO]
+    # Igual que en determinar_estado_factura: la tolerancia solo cuenta
+    # como resuelto si algo se aplicó de verdad (amount - saldo > 0), no
+    # por el solo hecho de que el monto total sea chico.
+    pendientes_nc = [c for c in credits_filtrados if c["saldo"] > TOLERANCIA_SALDO or c["saldo"] >= c["amount"]]
+    resueltas_nc = [c for c in credits_filtrados if c["saldo"] <= TOLERANCIA_SALDO and c["saldo"] < c["amount"]]
 
     total_pendientes = len(pendientes_fc) + len(pendientes_nc)
     total_resueltas = len(resueltas_fc) + len(resueltas_nc)

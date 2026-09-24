@@ -300,10 +300,17 @@ EPSILON_REDONDEO = 0.01
 
 
 def determinar_estado_factura(amount, saldo):
-    """Determina estado: Pagada / Parcialmente pagada / Impaga."""
-    if saldo <= TOLERANCIA_SALDO:
+    """Determina estado: Pagada / Parcialmente pagada / Impaga.
+
+    La tolerancia de saldo residual solo cuenta como "Pagada" si
+    efectivamente se aplicó algo (monto_aplicado > 0): sin este chequeo,
+    una factura chica (ej. $5, menor a TOLERANCIA_SALDO) sin ningún pago
+    aplicado quedaba marcada "Pagada" solo por ser pequeña, no porque se
+    haya cobrado nada."""
+    monto_aplicado = amount - saldo
+    if monto_aplicado > 0 and saldo <= TOLERANCIA_SALDO:
         return "Pagada"
-    elif saldo < amount:
+    elif monto_aplicado > 0:
         return "Parcialmente pagada"
     else:
         return "Impaga"
