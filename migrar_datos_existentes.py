@@ -3,7 +3,7 @@ Migración única: lleva los datos de SYNA que ya existen (el
 syna_tracking.db de producción, o un backup Excel descargado con el
 botón "Descargar backup" de la app) hacia el Postgres externo nuevo.
 
-Correr UNA sola vez, después de crear la base en Neon (o el proveedor que
+Correr UNA sola vez, después de crear la base en Supabase (o el proveedor que
 sea) y antes de que la app en producción empiece a escribir en ella, para
 no pisar datos nuevos con datos viejos.
 
