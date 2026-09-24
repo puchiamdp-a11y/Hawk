@@ -490,7 +490,7 @@ def _tab_comprobantes():
         _form_odp()
 
     st.markdown("---")
-    st.markdown("#### Últimos comprobantes registrados")
+    st.markdown(f"#### Todos los comprobantes ({len(obtener_invoices()) + len(obtener_credits()) + len(obtener_payments())})")
 
     invoices = obtener_invoices()
     credits = obtener_credits()
@@ -500,6 +500,12 @@ def _tab_comprobantes():
         st.info("Todavía no hay comprobantes registrados.")
         return
 
+    fc1, fc2 = st.columns([2, 1])
+    with fc1:
+        busqueda = st.text_input("Buscar por número", placeholder="Ej: FC-2026-001", key="buscar_comprobante")
+    with fc2:
+        filtro_tipo = st.selectbox("Tipo", ["Todos", "Factura", "Nota de Crédito", "Orden de Pago"], key="filtro_tipo_comprobante")
+
     badge_por_estado = {
         "Pagada": ("syna-badge-verde", "Pagada"),
         "Impaga": ("syna-badge-rojo", "Impaga"),
@@ -507,7 +513,7 @@ def _tab_comprobantes():
     }
 
     filas = []
-    for inv in invoices[:10]:
+    for inv in invoices:
         clase, texto = badge_por_estado.get(inv["estado"], ("syna-badge-ambar", inv["estado"]))
         filas.append({
             "tipo": "FC", "id": inv["id"], "numero": inv["invoice_number"],
@@ -515,7 +521,7 @@ def _tab_comprobantes():
             "estado_texto": texto, "estado_clase": clase, "orden": inv["created_at"],
             "detalle": inv,
         })
-    for cr in credits[:5]:
+    for cr in credits:
         # Estado según el saldo real (lo aplicado a órdenes de pago), no
         # el campo manual 'used' - antes decía "Disponible" aunque la NC
         # ya estuviera completamente aplicada a una ODP.
@@ -531,7 +537,7 @@ def _tab_comprobantes():
             "estado_texto": estado, "estado_clase": clase, "orden": cr["created_at"],
             "detalle": cr,
         })
-    for pago in payments[:5]:
+    for pago in payments:
         numero_visible = pago.get("payment_number") or f"ODP-{pago['id']}"
         filas.append({
             "tipo": "ODP", "id": pago["id"], "numero": numero_visible,
@@ -543,6 +549,18 @@ def _tab_comprobantes():
     filas.sort(key=lambda f: f["orden"], reverse=True)
 
     etiqueta_tipo = {"FC": "Factura", "NC": "Nota de Crédito", "ODP": "Orden de Pago"}
+
+    if filtro_tipo != "Todos":
+        tipo_a_filtrar = {v: k for k, v in etiqueta_tipo.items()}[filtro_tipo]
+        filas = [f for f in filas if f["tipo"] == tipo_a_filtrar]
+    if busqueda.strip():
+        termino = busqueda.strip().lower()
+        filas = [f for f in filas if termino in f["numero"].lower()]
+
+    st.caption(f"Mostrando {len(filas)} comprobante(s).")
+    if not filas:
+        st.info("Ningún comprobante coincide con la búsqueda/filtro.")
+        return
 
     filas_tabla = []
     for fila in filas:
