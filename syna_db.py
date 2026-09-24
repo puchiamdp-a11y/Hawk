@@ -2,7 +2,7 @@
 SYNA Tracking - Database Module
 Gestión de base de datos para tracking de facturas y pagos SYNA.
 
-Persistencia: Postgres externo (ej. Neon, tier gratuito), NO un archivo
+Persistencia: Postgres externo (Supabase, tier gratuito), NO un archivo
 local. Un archivo SQLite junto al código vive en el disco del contenedor:
 un redeploy, un cambio de código o un contenedor nuevo lo borra sin
 avisar. Al vivir en un servicio externo, los datos de SYNA quedan
@@ -61,8 +61,8 @@ def _obtener_pool():
             1, 10,
             _obtener_database_url(),
             cursor_factory=psycopg2.extras.RealDictCursor,
-            # Neon (tier gratuito) suspende el servidor tras un rato sin
-            # actividad y cierra las conexiones de su lado sin avisarle al
+            # Cualquier proveedor externo puede cerrar una conexión de su
+            # lado (mantenimiento, timeout de idle, etc.) sin avisarle al
             # pool. Sin un timeout, una conexión así queda "colgada" varios
             # segundos antes de fallar en vez de fallar rápido para poder
             # descartarla y reintentar con una nueva.
@@ -78,9 +78,9 @@ def _obtener_pool():
 def get_connection():
     """Obtiene una conexión sana del pool a la base Postgres externa.
 
-    El pool no sabe si una conexión sigue viva del otro lado (Neon la
-    puede haber cerrado por inactividad) hasta que se intenta usar. Antes
-    de entregarla se hace un chequeo liviano; si está muerta, se descarta
+    El pool no sabe si una conexión sigue viva del otro lado (el proveedor
+    la puede haber cerrado por inactividad o mantenimiento) hasta que se
+    intenta usar. Antes de entregarla se hace un chequeo liviano; si está muerta, se descarta
     (no se devuelve al pool) y se reintenta con una conexión nueva, en vez
     de que quien llama se quede esperando un timeout largo a mitad de una
     consulta real."""

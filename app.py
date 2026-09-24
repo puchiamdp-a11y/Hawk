@@ -24,17 +24,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Pantalla temporal, de un solo uso, para migrar los datos de SYNA de
-# Neon a Supabase sin exponer credenciales fuera de los Secrets de la
-# app. Se borra del código apenas se usa. Ver migracion_temporal.py.
-if st.query_params.get("migrar_syna"):
-    from migracion_temporal import token_valido, pantalla_migracion
-    if token_valido(st.query_params.get("migrar_syna")):
-        pantalla_migracion()
-    else:
-        st.error("Token inválido o no configurado (SYNA_MIGRATION_TOKEN en Secrets).")
-    st.stop()
-
 GOOGLE_DRIVE_ID = "1gZPD9XUspcN8e4FGrgdEl1AacDew68RU"
 URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=xlsx"
 

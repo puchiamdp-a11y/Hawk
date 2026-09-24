@@ -18,7 +18,7 @@ Este módulo resuelve el problema permitiendo:
 
 ### Stack Tecnológico
 - **Frontend**: Streamlit (integrado en Hawk)
-- **Backend**: Postgres externo (ej. Neon, tier gratuito) — ver "Persistencia y Backup" más abajo
+- **Backend**: Postgres externo (Supabase, tier gratuito) — ver "Persistencia y Backup" más abajo
 - **Lenguaje**: Python 3.8+
 
 ### Módulos
@@ -36,19 +36,27 @@ Este módulo resuelve el problema permitiendo:
 ## 💾 Persistencia y Backup
 
 Los datos de SYNA **NO** viven en un archivo junto al código. Viven en una
-base Postgres externa (recomendado: [Neon](https://neon.tech), tier
-gratuito permanente, no pide tarjeta). Esto es intencional: antes se usaba
-un archivo SQLite (`syna_tracking.db`) en el disco del propio contenedor
-de la app, que se perdía sin aviso ante cualquier redeploy o cambio de
-código. Con una base externa, el código se puede modificar, redeployar o
-recrear el contenedor sin que la información cargada corra riesgo.
+base Postgres externa ([Supabase](https://supabase.com), tier gratuito, no
+pide tarjeta). Esto es intencional: antes se usaba un archivo SQLite
+(`syna_tracking.db`) en el disco del propio contenedor de la app, que se
+perdía sin aviso ante cualquier redeploy o cambio de código. Con una base
+externa, el código se puede modificar, redeployar o recrear el contenedor
+sin que la información cargada corra riesgo.
+
+Se probó primero con Neon, pero su auto-suspend agresivo (apaga el
+servidor a los pocos minutos sin uso) causaba demoras largas al despertar
+la conexión. Supabase solo pausa el proyecto tras 7 días sin uso, mucho
+más apto para una app que se usa a diario.
 
 ### Configuración (una sola vez)
 
-1. Crear una cuenta gratuita en [neon.tech](https://neon.tech) y un
-   proyecto/base nueva.
-2. Copiar la **connection string** (formato
-   `postgresql://usuario:password@host/dbname?sslmode=require`).
+1. Crear una cuenta gratuita en [supabase.com](https://supabase.com) y un
+   proyecto nuevo (elegir una región cercana a donde corre el hosting de
+   la app, ej. `us-east-1` para Streamlit Community Cloud).
+2. En el proyecto, botón "Connect" → pestaña "Connection string" → copiar
+   la del **pooler** (formato
+   `postgresql://usuario:password@host:6543/postgres`), no la de
+   "Direct connection".
 3. Configurarla como secreto, **nunca** en el código ni en git:
    - **Local**: crear `.streamlit/secrets.toml` (ya está en `.gitignore`) con:
      ```toml
