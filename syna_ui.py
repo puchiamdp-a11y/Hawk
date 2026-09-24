@@ -1132,13 +1132,19 @@ def _tab_balance():
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+    col0, col1, col2, col3 = st.columns([1.2, 1, 1, 1])
+    with col0:
+        filtrar_por = st.selectbox(
+            "Filtrar por", ["Fecha de comprobante", "Fecha de vencimiento"], key="balance_filtrar_por",
+        )
     with col1:
         fecha_desde = st.date_input("Desde", value=None, format="DD/MM/YYYY", key="balance_desde")
     with col2:
         fecha_hasta = st.date_input("Hasta", value=None, format="DD/MM/YYYY", key="balance_hasta")
     with col3:
         estado = st.selectbox("Estado", ["Todas", "Pagadas", "Impagas", "Parciales"], key="balance_estado")
+    if filtrar_por == "Fecha de vencimiento":
+        st.caption("Las notas de crédito no tienen fecha de vencimiento, así que este filtro no les aplica: siguen mostrándose todas.")
 
     balance = calcular_balance_syna()
     # Defensivo: si alguna vez el dict viniera incompleto (versión vieja de
@@ -1152,22 +1158,31 @@ def _tab_balance():
     invoices = obtener_invoices()
     credits = obtener_credits()
 
+    # El campo de fecha sobre el que se filtra depende de "Filtrar por": la
+    # fecha del comprobante (invoice_date) o la fecha de vencimiento
+    # (due_date). Las NC no tienen vencimiento, así que ese filtro no las
+    # afecta (se filtran solo por fecha de comprobante siempre).
+    campo_fecha_fc = "due_date" if filtrar_por == "Fecha de vencimiento" else "invoice_date"
+
     inv_filtradas = invoices
     if fecha_desde:
-        inv_filtradas = [i for i in inv_filtradas if i["invoice_date"] and i["invoice_date"] >= fecha_desde.isoformat()]
+        inv_filtradas = [i for i in inv_filtradas if i.get(campo_fecha_fc) and i[campo_fecha_fc] >= fecha_desde.isoformat()]
     if fecha_hasta:
-        inv_filtradas = [i for i in inv_filtradas if i["invoice_date"] and i["invoice_date"] <= fecha_hasta.isoformat()]
+        inv_filtradas = [i for i in inv_filtradas if i.get(campo_fecha_fc) and i[campo_fecha_fc] <= fecha_hasta.isoformat()]
     if estado != "Todas":
         estado_map = {"Pagadas": "Pagada", "Impagas": "Impaga", "Parciales": "Parcialmente pagada"}
         inv_filtradas = [i for i in inv_filtradas if i["estado"] == estado_map.get(estado, "")]
 
-    # Las NC se filtran solo por fecha (no tienen "estado" de factura):
-    # así el filtro de período afecta a todo el libro diario por igual.
+    # Las NC se filtran solo por fecha de comprobante (no tienen
+    # vencimiento ni "estado" de factura): así el filtro de período afecta
+    # a todo el libro diario por igual, salvo cuando se filtra por
+    # vencimiento, donde no les aplica.
     credits_filtrados = credits
-    if fecha_desde:
-        credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] >= fecha_desde.isoformat()]
-    if fecha_hasta:
-        credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] <= fecha_hasta.isoformat()]
+    if filtrar_por != "Fecha de vencimiento":
+        if fecha_desde:
+            credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] >= fecha_desde.isoformat()]
+        if fecha_hasta:
+            credits_filtrados = [c for c in credits_filtrados if c["credit_date"] and c["credit_date"] <= fecha_hasta.isoformat()]
 
     hay_filtro_activo = bool(fecha_desde or fecha_hasta or estado != "Todas")
 
@@ -1247,7 +1262,10 @@ def _tab_balance():
             "Comprobante": inv["invoice_number"], "Tipo": "Factura",
             "Mes facturación": _fmt_mes_facturacion(inv.get("billing_month")),
             "Categoría": inv.get("category") or "—",
-            "Monto": inv["amount"], "Saldo pendiente": max(inv["saldo"], 0),
+            "Monto": inv["amount"],
+            "Fecha comprobante": _fmt_fecha(inv.get("invoice_date")),
+            "Fecha vencimiento": _fmt_fecha(inv.get("due_date")) if inv.get("due_date") else "—",
+            "_venc_sort": inv.get("due_date") or "9999-99-99",
             "Estado": inv["estado"] if inv["estado"] != "Parcialmente pagada" else "Parcial",
         }
 
@@ -1257,7 +1275,9 @@ def _tab_balance():
             "Mes facturación": _fmt_mes_facturacion(cr.get("billing_month")),
             "Categoría": cr.get("category") or "—",
             "Monto": cr["amount"],
-            "Saldo pendiente": max(cr["saldo"], 0) if pendiente else 0,
+            "Fecha comprobante": _fmt_fecha(cr.get("credit_date")),
+            "Fecha vencimiento": "—",
+            "_venc_sort": "9999-99-99",
             "Estado": ("Disponible" if cr["saldo"] >= cr["amount"] - 0.01 else "Parcial") if pendiente else "Aplicada",
         }
 
@@ -1276,12 +1296,11 @@ def _tab_balance():
     st.markdown(f"##### ⚠️ Requieren atención ({total_pendientes})")
     if total_pendientes:
         filas_pend = [_fila_fc(i) for i in pendientes_fc] + [_fila_nc(c, True) for c in pendientes_nc]
-        df_pend = pd.DataFrame(filas_pend).sort_values("Saldo pendiente", ascending=False)
+        df_pend = pd.DataFrame(filas_pend).sort_values("_venc_sort", ascending=True).drop(columns="_venc_sort")
         st.dataframe(
             df_pend.style.apply(_colorear_estado_triage, axis=1),
             column_config={
                 "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
-                "Saldo pendiente": st.column_config.NumberColumn("Saldo pendiente", format="$ %,.2f"),
             },
             hide_index=True,
             use_container_width=True,
@@ -1292,12 +1311,11 @@ def _tab_balance():
     with st.expander(f"✅ Ya están OK ({total_resueltas})"):
         if total_resueltas:
             filas_ok = [_fila_fc(i) for i in resueltas_fc] + [_fila_nc(c, False) for c in resueltas_nc]
-            df_ok = pd.DataFrame(filas_ok)
+            df_ok = pd.DataFrame(filas_ok).sort_values("_venc_sort", ascending=True).drop(columns="_venc_sort")
             st.dataframe(
                 df_ok.style.apply(_colorear_estado_triage, axis=1),
                 column_config={
                     "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
-                    "Saldo pendiente": st.column_config.NumberColumn("Saldo pendiente", format="$ %,.2f"),
                 },
                 hide_index=True,
                 use_container_width=True,
