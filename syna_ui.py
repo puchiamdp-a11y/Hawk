@@ -1345,7 +1345,106 @@ def _tab_balance():
 # TAB: HISTÓRICO
 # ============================================
 
+def _mes_texto_a_codigo(texto):
+    """Convierte 'Abril 2026' a '2026-04' (inverso de _fmt_mes_facturacion).
+    Usado solo por la restauración desde CSV."""
+    if not texto or texto == "—":
+        return ""
+    try:
+        nombre, anio = texto.rsplit(" ", 1)
+        idx = _MESES.index(nombre) + 1
+        return f"{anio}-{idx:02d}"
+    except (ValueError, IndexError):
+        return ""
+
+
+def _tab_restaurar_backup():
+    """Herramienta de uso único para restaurar comprobantes base (número,
+    monto, fecha, mes de facturación, categoría) desde un CSV exportado de
+    'Todos los comprobantes', después de una pérdida de datos. No
+    reconstruye aplicaciones NC/ODP-a-factura (ese CSV no las incluye):
+    esas relaciones hay que volver a cargarlas a mano desde la pestaña
+    Comprobantes una vez restaurados los comprobantes base."""
+    with st.expander("🔧 Restaurar comprobantes desde backup CSV (recuperación de datos)"):
+        st.warning("Usar solo para recuperar comprobantes perdidos. Esto NO restaura qué NC o efectivo se aplicó a qué factura — eso hay que volver a cargarlo manualmente en la pestaña Comprobantes después.")
+        archivo = st.file_uploader("CSV exportado ('Todos los comprobantes')", type=["csv"], key="restaurar_csv")
+        if archivo is None:
+            return
+
+        try:
+            df = pd.read_csv(archivo, encoding="utf-8-sig")
+        except Exception as e:
+            st.error(f"No se pudo leer el CSV: {e}")
+            return
+
+        columnas_esperadas = {"Comprobante", "Tipo", "Mes facturación", "Categoría", "Monto", "Fecha"}
+        if not columnas_esperadas.issubset(set(df.columns)):
+            st.error(f"El CSV no tiene las columnas esperadas: {columnas_esperadas}")
+            return
+
+        st.markdown(f"**Vista previa ({len(df)} filas):**")
+        st.dataframe(df, hide_index=True, use_container_width=True)
+
+        if st.button("Confirmar restauración", key="confirmar_restauracion_csv"):
+            invoices_existentes = {i["invoice_number"].strip().lower() for i in obtener_invoices()}
+            credits_existentes = {c["credit_number"].strip().lower() for c in obtener_credits()}
+            payments_existentes = {
+                p["payment_number"].strip().lower() for p in obtener_payments() if p.get("payment_number")
+            }
+
+            resultados = []
+            for _, fila in df.iterrows():
+                numero = str(fila["Comprobante"]).strip()
+                tipo = str(fila["Tipo"]).strip()
+                monto = float(fila["Monto"])
+                fecha = str(fila["Fecha"]).strip()
+                billing_month = _mes_texto_a_codigo(str(fila.get("Mes facturación", "")))
+                categoria = str(fila.get("Categoría", "")).strip()
+                if categoria == "—":
+                    categoria = ""
+
+                try:
+                    if tipo == "Factura":
+                        if numero.strip().lower() in invoices_existentes:
+                            resultados.append((numero, "omitida (ya existe)"))
+                            continue
+                        crear_invoice(
+                            invoice_number=numero, amount=monto, invoice_date=fecha, due_date="",
+                            notes="Restaurado desde backup CSV; falta cargar vencimiento",
+                            created_by="Dai", billing_month=billing_month, category=categoria
+                        )
+                        resultados.append((numero, "restaurada"))
+                    elif tipo == "Nota de Crédito":
+                        if numero.strip().lower() in credits_existentes:
+                            resultados.append((numero, "omitida (ya existe)"))
+                            continue
+                        crear_credit(
+                            credit_number=numero, amount=monto, credit_date=fecha, used=False,
+                            created_by="Dai", billing_month=billing_month, category=categoria
+                        )
+                        resultados.append((numero, "restaurada"))
+                    elif tipo == "Orden de Pago":
+                        if numero.strip().lower() in payments_existentes:
+                            resultados.append((numero, "omitida (ya existe)"))
+                            continue
+                        crear_payment(
+                            payment_date=fecha, amount=monto, payer="", description="Restaurado desde backup CSV",
+                            created_by="Dai", payment_number=numero
+                        )
+                        resultados.append((numero, "restaurada"))
+                    else:
+                        resultados.append((numero, f"tipo desconocido: {tipo}"))
+                except Exception as e:
+                    resultados.append((numero, f"ERROR: {e}"))
+
+            st.markdown("**Resultado:**")
+            st.dataframe(pd.DataFrame(resultados, columns=["Comprobante", "Resultado"]), hide_index=True, use_container_width=True)
+            st.success("Restauración terminada. Revisá la pestaña Comprobantes y volvé a aplicar manualmente las NC/pagos a cada factura.")
+
+
 def _tab_historico():
+    _tab_restaurar_backup()
+
     st.markdown("#### Registro de auditoría")
 
     logs = obtener_audit_log()
