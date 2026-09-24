@@ -18,10 +18,10 @@ from urllib.parse import urlsplit, urlunsplit
 from syna_db import (
     crear_invoice, obtener_invoices, eliminar_invoice, actualizar_invoice,
     crear_payment, obtener_payments, obtener_payment, eliminar_payment, actualizar_payment,
-    crear_mapping, obtener_mappings_aplicados, crear_invoice_credit_mapping,
+    crear_mapping, obtener_mappings_aplicados, crear_invoice_credit_mapping, obtener_aplicaciones_nc,
     crear_credit, obtener_credits, eliminar_credit, actualizar_credit,
     calcular_balance_syna, obtener_proximos_vencimientos,
-    obtener_audit_log, exportar_backup_excel
+    obtener_audit_log, exportar_backup_excel, TOLERANCIA_SALDO
 )
 
 CONTAINER_KEY = "syna_root"
@@ -525,7 +525,7 @@ def _tab_comprobantes():
         # Estado según el saldo real (lo aplicado a órdenes de pago), no
         # el campo manual 'used' - antes decía "Disponible" aunque la NC
         # ya estuviera completamente aplicada a una ODP.
-        if cr["saldo"] <= 0:
+        if cr["saldo"] <= TOLERANCIA_SALDO:
             estado, clase = "Aplicada", "syna-badge-verde"
         elif cr["saldo"] < cr["amount"]:
             estado, clase = "Parcial", "syna-badge-ambar"
@@ -1053,7 +1053,7 @@ def _form_odp():
                     with col3:
                         st.write(f"NC ${nc_de_esta_fc:,.0f} + Efectivo ${ef_de_esta_fc:,.0f}")
                     with col4:
-                        st.markdown("✅ **Saldada**" if saldo_final <= 0.01 else f"⚠️ Queda ${saldo_final:,.0f}")
+                        st.markdown("✅ **Saldada**" if saldo_final <= TOLERANCIA_SALDO else f"⚠️ Queda ${saldo_final:,.0f}")
 
                 for nc in nc_seleccionadas:
                     aplicado_de_esta_nc = sum(a["monto"] for a in aplicaciones_nc if a["nc_id"] == nc["id"])
@@ -1162,13 +1162,17 @@ def _tab_balance():
 
     # Las tarjetas de resumen reflejan lo que está filtrado, no el total
     # general: si hay un filtro activo, se recalculan sobre inv_filtradas
-    # / credits_filtrados en vez de usar el balance global.
+    # en vez de usar el balance global.
     total_facturado_view = sum(i["amount"] for i in inv_filtradas)
-    # Solo el efectivo real (vía ODP): la NC aplicada a la factura ya se
-    # cuenta en total_nc_view, sumarla acá también la restaría dos veces.
-    total_pagado_view = sum(i["efectivo_aplicado"] for i in inv_filtradas)
-    total_nc_view = sum(c["amount"] for c in credits_filtrados)
-    saldo_view = total_facturado_view - total_nc_view - total_pagado_view
+    # "Pagado" reúne efectivo y NC aplicada como dos formas de lo mismo:
+    # una NC recién cargada sin aplicar a ninguna factura NO resta acá
+    # todavía (antes se restaba el 100% de toda NC emitida apenas se
+    # cargaba, estuviera aplicada o no).
+    total_efectivo_view = sum(i["efectivo_aplicado"] for i in inv_filtradas)
+    total_nc_aplicada_view = sum(i["nc_aplicada"] for i in inv_filtradas)
+    total_pagado_view = total_efectivo_view + total_nc_aplicada_view
+    total_nc_disponible_view = sum(c["saldo"] for c in credits_filtrados)
+    saldo_view = total_facturado_view - total_pagado_view
 
     st.markdown("#### Estado general de cuenta")
     if hay_filtro_activo:
@@ -1179,7 +1183,7 @@ def _tab_balance():
     # demás es el detalle de cómo se compone ese número.
     color_class = "negative" if saldo_view > 0 else "positive"
     st.markdown(f"""<div class="syna-card syna-card-total">
-        <div class="syna-card-label">Total a pagar por SYNA (facturado − NC − pagado)</div>
+        <div class="syna-card-label">Total a pagar por SYNA (facturado − pagado)</div>
         <div class="syna-card-value-big {color_class}">${saldo_view:,.0f}</div>
     </div>""", unsafe_allow_html=True)
 
@@ -1193,14 +1197,15 @@ def _tab_balance():
         </div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Menos: notas de crédito</div>
-            <div class="syna-card-value positive">-${total_nc_view:,.0f}</div>
+            <div class="syna-card-label">Menos: pagado (efectivo + NC aplicada)</div>
+            <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="syna-card">
-            <div class="syna-card-label">Menos: pagado (aplicado)</div>
-            <div class="syna-card-value positive">-${total_pagado_view:,.0f}</div>
+            <div class="syna-card-label">NC disponible (sin aplicar todavía)</div>
+            <div class="syna-card-value neutral">${total_nc_disponible_view:,.0f}</div>
         </div>""", unsafe_allow_html=True)
+    st.caption("Una NC recién cargada no reduce el saldo hasta que se aplica a una factura (al registrar una ODP en la pestaña Comprobantes). Mientras tanto queda acá como crédito disponible.")
 
     if balance["pagos_sin_aplicar"] > 0:
         st.markdown(f'<div class="syna-alert">Hay ${balance["pagos_sin_aplicar"]:,.2f} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
@@ -1215,17 +1220,27 @@ def _tab_balance():
     if fecha_hasta:
         aplicados_filtrados = [a for a in aplicados_filtrados if a["payment_date"] and a["payment_date"] <= fecha_hasta.isoformat()]
 
+    # NC aplicadas a facturas: entran al libro diario con la fecha en
+    # que se APLICARON (created_at del mapping), no la de emisión de la
+    # NC - una NC sin aplicar todavía no genera ningún movimiento acá,
+    # coherente con que tampoco resta del saldo hasta ese momento.
+    nc_aplicadas_filtradas = obtener_aplicaciones_nc()
+    if fecha_desde:
+        nc_aplicadas_filtradas = [a for a in nc_aplicadas_filtradas if a["created_at"] and a["created_at"] >= fecha_desde.isoformat()]
+    if fecha_hasta:
+        nc_aplicadas_filtradas = [a for a in nc_aplicadas_filtradas if a["created_at"] and a["created_at"][:10] <= fecha_hasta.isoformat()]
+
     st.markdown("---")
     st.markdown("#### Libro diario")
 
-    if inv_filtradas or credits_filtrados or aplicados_filtrados:
+    if inv_filtradas or aplicados_filtrados or nc_aplicadas_filtradas:
         movimientos = []
         for inv in inv_filtradas:
             movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"],
                                  _fmt_mes_facturacion(inv.get("billing_month")), inv.get("category") or "—"))
-        for cr in credits_filtrados:
-            movimientos.append((cr.get("credit_date") or "", "haber", cr["credit_number"], cr["amount"],
-                                 _fmt_mes_facturacion(cr.get("billing_month")), cr.get("category") or "—"))
+        for ap in nc_aplicadas_filtradas:
+            etiqueta = f"{ap['credit_number']} → {ap['invoice_number']}"
+            movimientos.append((ap.get("created_at") or "", "haber", etiqueta, ap["amount_applied"], "—", "—"))
         for ap in aplicados_filtrados:
             numero_pago = ap.get("payment_number") or f"ODP-{ap['payment_id']}"
             etiqueta = f"{numero_pago} → {ap['invoice_number']}"

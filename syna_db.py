@@ -278,9 +278,18 @@ def calcular_saldo_factura(invoice_id):
     return 0
 
 
+# Un saldo residual menor a este monto se considera saldado. Existe
+# porque aplicar una ODP a varias facturas/NC a la vez implica varios
+# redondeos a centavos en cascada (ver _form_odp en syna_ui.py); sin
+# esta tolerancia, una factura completamente cubierta en la intención
+# del usuario podía quedar en "Parcial" por unos pocos centavos o pesos
+# de resto que no tienen ningún efecto práctico.
+TOLERANCIA_SALDO = 10
+
+
 def determinar_estado_factura(amount, saldo):
     """Determina estado: Pagada / Parcialmente pagada / Impaga."""
-    if saldo <= 0:
+    if saldo <= TOLERANCIA_SALDO:
         return "Pagada"
     elif saldo < amount:
         return "Parcialmente pagada"
@@ -441,22 +450,17 @@ def obtener_mappings_por_payment(payment_id):
 
 
 def obtener_mappings_aplicados():
-    """Todos los pagos aplicados a FACTURAS (no a NC), con la fecha y el
+    """Todo el efectivo aplicado a facturas vía ODP, con la fecha y el
     número del pago y de la factura correspondiente. Para el libro
     diario: sin esto, el saldo acumulado del libro diario no incluye las
     órdenes de pago y no coincide con el saldo pendiente real (que sí
     las resta).
 
-    Deliberadamente NO incluye aplicaciones a NC (aunque existan en
-    syna_credit_payment_mapping): una NC ya se resta al 100% en el libro
-    diario en el momento en que se la registra (línea "Haber" propia).
-    Si la aplicación a una ODP se sumara acá como otro "Haber", esa NC
-    quedaría restada dos veces y el saldo del libro diario dejaría de
-    coincidir con el saldo real (fue exactamente el bug reportado:
-    el saldo del libro diario daba -0.00 en vez de coincidir con el
-    saldo pendiente real). El mapping de NC sirve para trazabilidad
-    (qué ODP cubre qué NC) y para no dejar aplicar la misma NC dos
-    veces, no para generar un segundo movimiento contable."""
+    Solo cubre efectivo (syna_invoice_payment_mapping); las aplicaciones
+    de NC a factura tienen su propia función, obtener_aplicaciones_nc(),
+    porque en el libro diario entran como su propia línea de "Haber" en
+    el momento de la APLICACIÓN, no de la carga de la NC (ver esa
+    función para el porqué)."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -471,6 +475,29 @@ def obtener_mappings_aplicados():
     aplicados = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return aplicados
+
+
+def obtener_aplicaciones_nc():
+    """Todas las aplicaciones de NC a facturas (syna_invoice_credit_mapping),
+    con fecha, número de factura y de NC. Usado en el libro diario:
+    una NC recién cargada ya no genera su propia línea de "Haber" (ver
+    calcular_balance_syna - no resta del saldo hasta que se aplica), así
+    que el movimiento contable que la refleja es esta aplicación, con la
+    fecha en que efectivamente se usó, no la fecha en que se emitió."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT m.id, m.amount_applied, m.created_at, m.payment_id,
+           i.invoice_number, c.credit_number
+    FROM syna_invoice_credit_mapping m
+    JOIN syna_invoices i ON m.invoice_id = i.id
+    JOIN syna_credits c ON m.credit_id = c.id
+    """)
+
+    aplicaciones = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return aplicaciones
 
 
 def eliminar_mapping(mapping_id):
@@ -733,12 +760,15 @@ def actualizar_payment(payment_id, payment_number, payment_date, amount, payer, 
 # ============================================
 
 def calcular_balance_syna():
-    """Calcula balance total SYNA: Facturas (debe) contra NC + pagos aplicados (haber).
+    """Calcula balance total SYNA: Facturas (debe) contra pagos (haber).
 
-    total_pagado usa el monto efectivamente APLICADO (matched) a facturas,
-    no el bruto de syna_payments, para que el saldo general sea coherente
-    con calcular_saldo_factura() de cada factura individual. Un pago
-    registrado pero sin aplicar (matching pendiente) no reduce el saldo.
+    Una NC recién cargada NO reduce el saldo hasta que se aplica a una
+    factura (vía syna_invoice_credit_mapping, típicamente al registrar
+    una ODP): antes se restaba el 100% de toda NC emitida apenas se
+    cargaba, estuviera aplicada o no, lo que además duplicaba la resta
+    de lo ya cubierto por una ODP. "Pagado (aplicado)" ahora reúne
+    efectivo y NC aplicada como dos formas de lo mismo: cuánto de lo
+    facturado ya está efectivamente cubierto.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -747,20 +777,22 @@ def calcular_balance_syna():
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_invoices")
     total_facturado = cursor.fetchone()["total"]
 
-    # Total notas de crédito (HABER) - reducen lo que SYNA debe
+    # Total de NC emitidas (informativo: incluye las que todavía no se
+    # aplicaron a ninguna factura, esas no restan del saldo todavía).
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_credits")
-    total_nc = cursor.fetchone()["total"]
+    total_nc_bruto = cursor.fetchone()["total"]
 
     # Total bruto de órdenes de pago registradas (informativo)
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_payments")
     total_ordenes_pago = cursor.fetchone()["total"]
 
-    # Total EFECTIVAMENTE aplicado a facturas (HABER real). Este es el que
-    # se usa para saldo_pendiente: las NC ya se restan enteras arriba
-    # (total_nc), así que sumar también lo aplicado a NC acá duplicaría
-    # esa resta.
+    # Efectivo aplicado a facturas vía ODP
     cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_invoice_payment_mapping")
-    total_pagado_facturas = cursor.fetchone()["total"]
+    total_efectivo_aplicado = cursor.fetchone()["total"]
+
+    # NC aplicada directo a una factura (el modelo actual)
+    cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_invoice_credit_mapping")
+    total_nc_aplicada = cursor.fetchone()["total"]
 
     # Compatibilidad con datos guardados con el modelo viejo (NC aplicada
     # directo contra una ODP, sin pasar por una factura - ver comentario
@@ -771,14 +803,18 @@ def calcular_balance_syna():
 
     conn.close()
 
-    saldo_pendiente = total_facturado - total_nc - total_pagado_facturas
+    total_pagado = total_efectivo_aplicado + total_nc_aplicada
+    saldo_pendiente = total_facturado - total_pagado
 
     return {
         "total_facturado": total_facturado,
-        "total_nc": total_nc,
+        "total_nc": total_nc_bruto,
+        "total_nc_disponible": total_nc_bruto - total_nc_aplicada,
+        "total_nc_aplicada": total_nc_aplicada,
         "total_ordenes_pago": total_ordenes_pago,
-        "total_pagado": total_pagado_facturas,
-        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_facturas - total_pagado_nc_legacy,
+        "total_pagado": total_pagado,
+        "total_efectivo_aplicado": total_efectivo_aplicado,
+        "pagos_sin_aplicar": total_ordenes_pago - total_efectivo_aplicado - total_pagado_nc_legacy,
         "saldo_pendiente": saldo_pendiente
     }
 
