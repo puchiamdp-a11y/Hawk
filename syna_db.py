@@ -39,9 +39,19 @@ def inicializar_db():
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL,
         notes TEXT,
+        billing_month TEXT,
+        category TEXT,
         UNIQUE(invoice_number)
     )
     """)
+
+    # Migración: agregar billing_month/category si la tabla ya existía sin esas columnas
+    cursor.execute("PRAGMA table_info(syna_invoices)")
+    columnas_inv = [c[1] for c in cursor.fetchall()]
+    if "billing_month" not in columnas_inv:
+        cursor.execute("ALTER TABLE syna_invoices ADD COLUMN billing_month TEXT")
+    if "category" not in columnas_inv:
+        cursor.execute("ALTER TABLE syna_invoices ADD COLUMN category TEXT")
 
     # TABLA 2: Órdenes de pago
     cursor.execute("""
@@ -86,9 +96,19 @@ def inicializar_db():
         used INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL,
+        billing_month TEXT,
+        category TEXT,
         UNIQUE(credit_number)
     )
     """)
+
+    # Migración: agregar billing_month/category si la tabla ya existía sin esas columnas
+    cursor.execute("PRAGMA table_info(syna_credits)")
+    columnas_cred = [c[1] for c in cursor.fetchall()]
+    if "billing_month" not in columnas_cred:
+        cursor.execute("ALTER TABLE syna_credits ADD COLUMN billing_month TEXT")
+    if "category" not in columnas_cred:
+        cursor.execute("ALTER TABLE syna_credits ADD COLUMN category TEXT")
 
     # TABLA 5: Auditoría
     cursor.execute("""
@@ -109,7 +129,8 @@ def inicializar_db():
 # FUNCIONES PARA INVOICES
 # ============================================
 
-def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0, email_link="", notes="", created_by="Dai"):
+def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0, email_link="", notes="",
+                   created_by="Dai", billing_month="", category=""):
     """Crea una nueva factura Sancor."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -118,9 +139,9 @@ def crear_invoice(invoice_number, amount, invoice_date, due_date, fixed_stamps=0
         now = datetime.now().isoformat()
         cursor.execute("""
         INSERT INTO syna_invoices
-        (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, created_at, created_by, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, now, created_by, notes))
+        (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, created_at, created_by, notes, billing_month, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, now, created_by, notes, billing_month, category))
 
         conn.commit()
         invoice_id = cursor.lastrowid
@@ -147,7 +168,8 @@ def obtener_invoices(filtro_estado=None):
 
     cursor.execute("""
     SELECT i.id, i.invoice_number, i.amount, i.invoice_date, i.due_date,
-           i.fixed_stamps, i.email_link, i.created_at, i.created_by, i.notes
+           i.fixed_stamps, i.email_link, i.created_at, i.created_by, i.notes,
+           i.billing_month, i.category
     FROM syna_invoices i
     ORDER BY i.created_at DESC
     """)
@@ -227,7 +249,7 @@ def eliminar_invoice(invoice_id):
 
 
 def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_date,
-                        fixed_stamps=0, email_link="", notes=""):
+                        fixed_stamps=0, email_link="", notes="", billing_month="", category=""):
     """Actualiza los datos de una factura existente."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -236,9 +258,10 @@ def actualizar_invoice(invoice_id, invoice_number, amount, invoice_date, due_dat
         cursor.execute("""
         UPDATE syna_invoices
         SET invoice_number = ?, amount = ?, invoice_date = ?, due_date = ?,
-            fixed_stamps = ?, email_link = ?, notes = ?
+            fixed_stamps = ?, email_link = ?, notes = ?, billing_month = ?, category = ?
         WHERE id = ?
-        """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, notes, invoice_id))
+        """, (invoice_number, amount, invoice_date, due_date, fixed_stamps, email_link, notes,
+              billing_month, category, invoice_id))
 
         conn.commit()
         registrar_auditoria(conn, "Dai", "invoice_updated", {
@@ -387,7 +410,7 @@ def eliminar_mapping(mapping_id):
 # FUNCIONES PARA CREDITS
 # ============================================
 
-def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai"):
+def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai", billing_month="", category=""):
     """Crea una nota de crédito."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -395,9 +418,9 @@ def crear_credit(credit_number, amount, credit_date, used=False, created_by="Dai
     try:
         now = datetime.now().isoformat()
         cursor.execute("""
-        INSERT INTO syna_credits (credit_number, amount, credit_date, used, created_at, created_by)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, (credit_number, amount, credit_date, 1 if used else 0, now, created_by))
+        INSERT INTO syna_credits (credit_number, amount, credit_date, used, created_at, created_by, billing_month, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (credit_number, amount, credit_date, 1 if used else 0, now, created_by, billing_month, category))
 
         conn.commit()
         credit_id = cursor.lastrowid
@@ -421,7 +444,7 @@ def obtener_credits():
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, credit_number, amount, credit_date, used, created_at, created_by
+    SELECT id, credit_number, amount, credit_date, used, created_at, created_by, billing_month, category
     FROM syna_credits
     ORDER BY created_at DESC
     """)
@@ -453,7 +476,7 @@ def eliminar_credit(credit_id):
     conn.close()
 
 
-def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False):
+def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False, billing_month="", category=""):
     """Actualiza los datos de una NC existente."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -461,9 +484,9 @@ def actualizar_credit(credit_id, credit_number, amount, credit_date, used=False)
     try:
         cursor.execute("""
         UPDATE syna_credits
-        SET credit_number = ?, amount = ?, credit_date = ?, used = ?
+        SET credit_number = ?, amount = ?, credit_date = ?, used = ?, billing_month = ?, category = ?
         WHERE id = ?
-        """, (credit_number, amount, credit_date, 1 if used else 0, credit_id))
+        """, (credit_number, amount, credit_date, 1 if used else 0, billing_month, category, credit_id))
 
         conn.commit()
         registrar_auditoria(conn, "Dai", "credit_updated", {

@@ -45,6 +45,49 @@ def _fmt_fecha_hora(timestamp_iso):
         return datetime.fromisoformat(str(timestamp_iso)).strftime("%d/%m/%Y %H:%M")
     except ValueError:
         return str(timestamp_iso)
+
+
+_MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+          "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+
+def _selector_mes_facturacion(key_prefix, valor_actual=None):
+    """Selector Mes + Año de facturación. Guarda/lee como 'YYYY-MM' (texto
+    ordenable). Se usa en FC y NC, nunca en ODP."""
+    anio_actual = datetime.now().year
+    anios = list(range(anio_actual - 2, anio_actual + 2))
+
+    mes_idx = 0
+    anio_default = anio_actual
+    if valor_actual:
+        try:
+            anio_str, mes_str = str(valor_actual).split("-")
+            anio_default = int(anio_str)
+            mes_idx = int(mes_str) - 1
+        except (ValueError, IndexError):
+            pass
+    if anio_default not in anios:
+        anios.append(anio_default)
+        anios.sort()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        mes_sel = st.selectbox("Mes de facturación", _MESES, index=mes_idx, key=f"{key_prefix}_mes")
+    with col2:
+        anio_sel = st.selectbox("Año", anios, index=anios.index(anio_default), key=f"{key_prefix}_anio")
+
+    return f"{anio_sel}-{_MESES.index(mes_sel) + 1:02d}"
+
+
+def _fmt_mes_facturacion(valor):
+    """Convierte 'YYYY-MM' a 'Septiembre 2026' para mostrar. '—' si vacío."""
+    if not valor:
+        return "—"
+    try:
+        anio_str, mes_str = str(valor).split("-")
+        return f"{_MESES[int(mes_str) - 1]} {anio_str}"
+    except (ValueError, IndexError):
+        return str(valor)
 SCOPE = f".st-key-{CONTAINER_KEY}"
 
 
@@ -494,59 +537,95 @@ def _tab_comprobantes():
 
     etiqueta_tipo = {"FC": "Factura", "NC": "Nota de Crédito", "ODP": "Orden de Pago"}
 
-    h1, h2, h3, h4, h5, h6 = st.columns([2, 1.4, 1.2, 1.2, 1.2, 1.4])
-    for h, texto in zip((h1, h2, h3, h4, h5), ("**Comprobante**", "**Tipo**", "**Monto**", "**Fecha**", "**Estado**")):
-        with h:
-            st.markdown(texto)
+    filas_tabla = []
+    for fila in filas:
+        detalle = fila["detalle"]
+        if fila["tipo"] in ("FC", "NC"):
+            mes = _fmt_mes_facturacion(detalle.get("billing_month"))
+            categoria = detalle.get("category") or "—"
+        else:
+            mes = "—"
+            categoria = "—"
+        filas_tabla.append({
+            "Comprobante": fila["numero"],
+            "Tipo": etiqueta_tipo[fila["tipo"]],
+            "Mes facturación": mes,
+            "Categoría": categoria,
+            "Monto": fila["monto"],
+            "Fecha": _fecha_a_date(fila["fecha"]),
+            "Estado": fila["estado_texto"],
+        })
+
+    df_comprobantes = pd.DataFrame(filas_tabla)
+
+    def _colorear_estado(row):
+        estilos = [""] * len(row)
+        idx_estado = row.index.get_loc("Estado")
+        estado = row["Estado"]
+        if estado in ("Pagada", "Disponible", "Registrada"):
+            estilos[idx_estado] = "background-color: #F0FDF4; color: #15803D; font-weight: 600;"
+        elif estado == "Impaga":
+            estilos[idx_estado] = "background-color: #FEF2F2; color: #B91C1C; font-weight: 600;"
+        else:
+            estilos[idx_estado] = "background-color: #FFFBEB; color: #B45309; font-weight: 600;"
+        return estilos
 
     if "confirmar_eliminar" not in st.session_state:
         st.session_state.confirmar_eliminar = None
     if "editando" not in st.session_state:
         st.session_state.editando = None
 
-    for fila in filas:
-        clave = f"{fila['tipo']}_{fila['id']}"
-        c1, c2, c3, c4, c5, c6 = st.columns([2, 1.4, 1.2, 1.2, 1.2, 1.4])
-        with c1:
-            st.write(f"**{fila['numero']}**")
-        with c2:
-            st.write(etiqueta_tipo[fila["tipo"]])
-        with c3:
-            st.write(f"${fila['monto']:,.2f}")
-        with c4:
-            st.write(_fmt_fecha(fila["fecha"]))
-        with c5:
-            st.markdown(f'<span class="syna-badge {fila["estado_clase"]}">{fila["estado_texto"]}</span>', unsafe_allow_html=True)
-        with c6:
-            bc1, bc2 = st.columns(2)
-            with bc1:
-                if st.button("✏️", key=f"edit_{clave}", help="Editar", use_container_width=True):
-                    st.session_state.editando = None if st.session_state.editando == clave else clave
-                    st.session_state.confirmar_eliminar = None
-                    st.rerun()
-            with bc2:
-                if st.button("🗑️", key=f"del_{clave}", help="Eliminar", use_container_width=True):
-                    st.session_state.confirmar_eliminar = clave
-                    st.session_state.editando = None
-                    st.rerun()
+    st.caption("Hacé clic en una fila para editarla o eliminarla. Ordená por cualquier columna haciendo clic en su encabezado.")
+    evento = st.dataframe(
+        df_comprobantes.style.apply(_colorear_estado, axis=1),
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        key="tabla_comprobantes",
+        column_config={
+            "Monto": st.column_config.NumberColumn("Monto", format="$ %,.2f"),
+            "Fecha": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
+        }
+    )
+
+    filas_seleccionadas = evento.selection.rows if evento and evento.selection else []
+
+    if filas_seleccionadas:
+        fila_sel = filas[filas_seleccionadas[0]]
+        clave = f"{fila_sel['tipo']}_{fila_sel['id']}"
+
+        bc1, bc2, bc3 = st.columns([2, 1, 1])
+        with bc1:
+            st.write(f"Seleccionado: **{fila_sel['numero']}**")
+        with bc2:
+            if st.button("✏️ Editar", key=f"edit_{clave}", use_container_width=True):
+                st.session_state.editando = None if st.session_state.editando == clave else clave
+                st.session_state.confirmar_eliminar = None
+                st.rerun()
+        with bc3:
+            if st.button("🗑️ Eliminar", key=f"del_{clave}", use_container_width=True):
+                st.session_state.confirmar_eliminar = clave
+                st.session_state.editando = None
+                st.rerun()
 
         if st.session_state.editando == clave:
-            _editar_comprobante(fila)
+            _editar_comprobante(fila_sel)
 
-        if st.session_state.get("confirmar_eliminar") == clave:
-            st.warning(f"¿Eliminar **{fila['numero']}** definitivamente? Esta acción no se puede deshacer.")
+        if st.session_state.confirmar_eliminar == clave:
+            st.warning(f"¿Eliminar **{fila_sel['numero']}** definitivamente? Esta acción no se puede deshacer.")
             cc1, cc2 = st.columns(2)
             with cc1:
                 if st.button("Sí, eliminar", key=f"confirm_{clave}", use_container_width=True):
                     try:
-                        if fila["tipo"] == "FC":
-                            eliminar_invoice(fila["id"])
-                        elif fila["tipo"] == "NC":
-                            eliminar_credit(fila["id"])
+                        if fila_sel["tipo"] == "FC":
+                            eliminar_invoice(fila_sel["id"])
+                        elif fila_sel["tipo"] == "NC":
+                            eliminar_credit(fila_sel["id"])
                         else:
-                            eliminar_payment(fila["id"])
+                            eliminar_payment(fila_sel["id"])
                         st.session_state.confirmar_eliminar = None
-                        st.success(f"{fila['numero']} eliminado.")
+                        st.success(f"{fila_sel['numero']} eliminado.")
                         st.rerun()
                     except ValueError as e:
                         st.error(str(e))
@@ -596,6 +675,14 @@ def _editar_factura(inv):
 
         sellados = st.number_input("Sellados ($)", min_value=0.0, step=10.0,
                                     value=float(inv.get("fixed_stamps") or 0), format="%.2f")
+
+        billing_month = _selector_mes_facturacion(f"editar_fc_{inv['id']}", inv.get("billing_month"))
+        opciones_cat = ["", "GE", "ASS"]
+        cat_actual = inv.get("category") or ""
+        categoria = st.selectbox("Categoría", opciones_cat,
+                                  index=opciones_cat.index(cat_actual) if cat_actual in opciones_cat else 0,
+                                  key=f"categoria_editar_fc_{inv['id']}")
+
         email = st.text_input("Link correo (opcional)", value=inv.get("email_link") or "")
         notas = st.text_area("Notas", value=inv.get("notes") or "", height=60)
 
@@ -609,7 +696,7 @@ def _editar_factura(inv):
             try:
                 actualizar_invoice(
                     inv["id"], numero, monto, fecha.isoformat(), vencimiento.isoformat(),
-                    sellados, email, notas
+                    sellados, email, notas, billing_month, categoria
                 )
                 st.session_state.editando = None
                 st.success(f"{numero} actualizada.")
@@ -633,6 +720,13 @@ def _editar_nc(cr):
         monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, value=float(cr["amount"]), format="%.2f")
         utilizada = st.checkbox("Marcar como utilizada (informativo)", value=bool(cr.get("used")))
 
+        billing_month = _selector_mes_facturacion(f"editar_nc_{cr['id']}", cr.get("billing_month"))
+        opciones_cat = ["", "GE", "ASS"]
+        cat_actual = cr.get("category") or ""
+        categoria = st.selectbox("Categoría", opciones_cat,
+                                  index=opciones_cat.index(cat_actual) if cat_actual in opciones_cat else 0,
+                                  key=f"categoria_editar_nc_{cr['id']}")
+
         c1, c2 = st.columns(2)
         with c1:
             guardar = st.form_submit_button("Guardar cambios", use_container_width=True)
@@ -641,7 +735,7 @@ def _editar_nc(cr):
 
         if guardar:
             try:
-                actualizar_credit(cr["id"], numero, monto, fecha.isoformat(), utilizada)
+                actualizar_credit(cr["id"], numero, monto, fecha.isoformat(), utilizada, billing_month, categoria)
                 st.session_state.editando = None
                 st.success(f"{numero} actualizada.")
                 st.rerun()
@@ -722,6 +816,9 @@ def _form_factura():
             with col2:
                 sv = st.number_input("Sellados variables ($)", min_value=0.0, step=10.0, value=0.0, format="%.2f")
 
+            billing_month = _selector_mes_facturacion("nueva_fc")
+            categoria = st.selectbox("Categoría", ["", "GE", "ASS"], key="categoria_fc")
+
             email = st.text_input("Link correo (opcional)")
             notas = st.text_area("Notas", height=60)
 
@@ -737,7 +834,8 @@ def _form_factura():
                             invoice_date=fecha_factura.isoformat(),
                             due_date=fecha_vencimiento.isoformat(),
                             fixed_stamps=sf + sv, email_link=email,
-                            notes=notas, created_by="Dai"
+                            notes=notas, created_by="Dai",
+                            billing_month=billing_month, category=categoria
                         )
                         st.success(f"{numero_fc} registrada. Ya está sumada en Balance.")
                         st.rerun()
@@ -766,6 +864,9 @@ def _form_nc():
         monto_nc = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f")
         utilizada = st.checkbox("Marcar como utilizada (informativo)")
 
+        billing_month = _selector_mes_facturacion("nueva_nc")
+        categoria = st.selectbox("Categoría", ["", "GE", "ASS"], key="categoria_nc")
+
         if st.form_submit_button("Registrar NC", use_container_width=True):
             if not numero_nc or monto_nc <= 0:
                 st.error("Número y monto son obligatorios")
@@ -776,7 +877,8 @@ def _form_nc():
                     crear_credit(
                         credit_number=numero_nc, amount=monto_nc,
                         credit_date=fecha_nc.isoformat(), used=utilizada,
-                        created_by="Dai"
+                        created_by="Dai",
+                        billing_month=billing_month, category=categoria
                     )
                     st.success(f"{numero_nc} registrada. Ya está restando en Balance.")
                     st.rerun()
@@ -1056,13 +1158,15 @@ def _tab_balance():
     if inv_filtradas or credits_filtrados or aplicados_filtrados:
         movimientos = []
         for inv in inv_filtradas:
-            movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"]))
+            movimientos.append((inv.get("invoice_date") or "", "debe", inv["invoice_number"], inv["amount"],
+                                 _fmt_mes_facturacion(inv.get("billing_month")), inv.get("category") or "—"))
         for cr in credits_filtrados:
-            movimientos.append((cr.get("credit_date") or "", "haber", cr["credit_number"], cr["amount"]))
+            movimientos.append((cr.get("credit_date") or "", "haber", cr["credit_number"], cr["amount"],
+                                 _fmt_mes_facturacion(cr.get("billing_month")), cr.get("category") or "—"))
         for ap in aplicados_filtrados:
             numero_pago = ap.get("payment_number") or f"ODP-{ap['payment_id']}"
             etiqueta = f"{numero_pago} → {ap['invoice_number']}"
-            movimientos.append((ap.get("payment_date") or "", "haber", etiqueta, ap["amount_applied"]))
+            movimientos.append((ap.get("payment_date") or "", "haber", etiqueta, ap["amount_applied"], "—", "—"))
 
         # El saldo acumulado se calcula UNA VEZ en orden cronológico real
         # (así tiene sentido contable) y queda fijo en cada fila; el
@@ -1072,7 +1176,7 @@ def _tab_balance():
 
         filas = []
         saldo = 0
-        for fecha, tipo, numero, monto in movimientos:
+        for fecha, tipo, numero, monto, mes_fact, categoria in movimientos:
             # 0.0 en vez de NaN a propósito: en esta versión de Streamlit,
             # st.dataframe muestra el texto literal "None" para celdas NaN
             # sin importar el format (probado con y sin Styler, con varios
@@ -1089,6 +1193,8 @@ def _tab_balance():
             filas.append({
                 "Fecha": datetime.fromisoformat(fecha[:10]).date() if fecha else None,
                 "Comprobante": numero,
+                "Mes facturación": mes_fact,
+                "Categoría": categoria,
                 "Debe": debe,
                 "Haber": haber,
                 "Saldo acumulado": saldo,
