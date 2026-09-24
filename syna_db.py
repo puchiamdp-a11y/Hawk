@@ -395,13 +395,22 @@ def obtener_mappings_por_payment(payment_id):
 
 
 def obtener_mappings_aplicados():
-    """Todos los pagos aplicados a facturas Y a NC, con la fecha y el
-    número del pago y del comprobante correspondiente. Para el libro
+    """Todos los pagos aplicados a FACTURAS (no a NC), con la fecha y el
+    número del pago y de la factura correspondiente. Para el libro
     diario: sin esto, el saldo acumulado del libro diario no incluye las
     órdenes de pago y no coincide con el saldo pendiente real (que sí
-    las resta). 'invoice_number' se reusa como nombre de columna para
-    ambos casos (factura o NC) porque la UI del libro diario ya lo lee
-    así, sin distinguir origen."""
+    las resta).
+
+    Deliberadamente NO incluye aplicaciones a NC (aunque existan en
+    syna_credit_payment_mapping): una NC ya se resta al 100% en el libro
+    diario en el momento en que se la registra (línea "Haber" propia).
+    Si la aplicación a una ODP se sumara acá como otro "Haber", esa NC
+    quedaría restada dos veces y el saldo del libro diario dejaría de
+    coincidir con el saldo real (fue exactamente el bug reportado:
+    el saldo del libro diario daba -0.00 en vez de coincidir con el
+    saldo pendiente real). El mapping de NC sirve para trazabilidad
+    (qué ODP cubre qué NC) y para no dejar aplicar la misma NC dos
+    veces, no para generar un segundo movimiento contable."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -411,12 +420,6 @@ def obtener_mappings_aplicados():
     FROM syna_invoice_payment_mapping m
     JOIN syna_payments p ON m.payment_id = p.id
     JOIN syna_invoices i ON m.invoice_id = i.id
-    UNION ALL
-    SELECT m.id, m.amount_applied, p.payment_date, p.payment_number, p.id as payment_id,
-           c.credit_number as invoice_number
-    FROM syna_credit_payment_mapping m
-    JOIN syna_payments p ON m.payment_id = p.id
-    JOIN syna_credits c ON m.credit_id = c.id
     """)
 
     aplicados = [dict(row) for row in cursor.fetchall()]
@@ -658,20 +661,29 @@ def calcular_balance_syna():
     cursor.execute("SELECT COALESCE(SUM(amount), 0) as total FROM syna_payments")
     total_ordenes_pago = cursor.fetchone()["total"]
 
-    # Total EFECTIVAMENTE aplicado a facturas (HABER real)
+    # Total EFECTIVAMENTE aplicado a facturas (HABER real). Este es el que
+    # se usa para saldo_pendiente: las NC ya se restan enteras arriba
+    # (total_nc), así que sumar también lo aplicado a NC acá duplicaría
+    # esa resta.
     cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_invoice_payment_mapping")
-    total_pagado_aplicado = cursor.fetchone()["total"]
+    total_pagado_facturas = cursor.fetchone()["total"]
+
+    # Total aplicado a NC (para "pagos_sin_aplicar" nada más: una ODP
+    # vinculada a una NC ya está conciliada, aunque esa NC no pase por acá
+    # para el cálculo del saldo).
+    cursor.execute("SELECT COALESCE(SUM(amount_applied), 0) as total FROM syna_credit_payment_mapping")
+    total_pagado_nc = cursor.fetchone()["total"]
 
     conn.close()
 
-    saldo_pendiente = total_facturado - total_nc - total_pagado_aplicado
+    saldo_pendiente = total_facturado - total_nc - total_pagado_facturas
 
     return {
         "total_facturado": total_facturado,
         "total_nc": total_nc,
         "total_ordenes_pago": total_ordenes_pago,
-        "total_pagado": total_pagado_aplicado,
-        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_aplicado,
+        "total_pagado": total_pagado_facturas,
+        "pagos_sin_aplicar": total_ordenes_pago - total_pagado_facturas - total_pagado_nc,
         "saldo_pendiente": saldo_pendiente
     }
 
