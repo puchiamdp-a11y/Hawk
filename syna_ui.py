@@ -484,13 +484,13 @@ def _form_factura():
             with col1:
                 numero_fc = st.text_input("Número FC", placeholder="FC-2026-001")
             with col2:
-                fecha_factura = st.date_input("Fecha")
+                fecha_factura = st.date_input("Fecha", format="DD/MM/YYYY")
 
             col1, col2 = st.columns(2)
             with col1:
                 monto = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f")
             with col2:
-                fecha_vencimiento = st.date_input("Vencimiento")
+                fecha_vencimiento = st.date_input("Vencimiento", format="DD/MM/YYYY")
 
             col1, col2 = st.columns(2)
             with col1:
@@ -528,7 +528,7 @@ def _form_nc():
         with col1:
             numero_nc = st.text_input("Número NC", placeholder="NC-2026-001")
         with col2:
-            fecha_nc = st.date_input("Fecha")
+            fecha_nc = st.date_input("Fecha", format="DD/MM/YYYY")
 
         monto_nc = st.number_input("Monto ($)", min_value=0.0, step=100.0, format="%.2f")
         utilizada = st.checkbox("Marcar como utilizada (informativo)")
@@ -559,7 +559,7 @@ def _form_odp():
     with col1:
         numero_odp = st.text_input("Número ODP", placeholder="ODP-2026-001", key="numero_odp_input")
     with col2:
-        fecha_pago = st.date_input("Fecha", key="fecha_pago_input")
+        fecha_pago = st.date_input("Fecha", format="DD/MM/YYYY", key="fecha_pago_input")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -712,9 +712,9 @@ def _tab_balance():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        fecha_desde = st.date_input("Desde", value=None, key="balance_desde")
+        fecha_desde = st.date_input("Desde", value=None, format="DD/MM/YYYY", key="balance_desde")
     with col2:
-        fecha_hasta = st.date_input("Hasta", value=None, key="balance_hasta")
+        fecha_hasta = st.date_input("Hasta", value=None, format="DD/MM/YYYY", key="balance_hasta")
     with col3:
         estado = st.selectbox("Estado", ["Todas", "Pagadas", "Impagas", "Parciales"], key="balance_estado")
 
