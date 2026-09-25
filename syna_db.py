@@ -14,7 +14,6 @@ SYNA_DATABASE_URL.
 
 import os
 import json
-import warnings
 from datetime import datetime
 from io import BytesIO
 import pandas as pd
@@ -1061,11 +1060,17 @@ def exportar_backup_excel():
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         for nombre_hoja, query in hojas.items():
-            with warnings.catch_warnings():
-                # pandas advierte que psycopg2 no es su conector "oficial"
-                # (prefiere SQLAlchemy); funciona igual, es solo ruido.
-                warnings.simplefilter("ignore", UserWarning)
-                df = pd.read_sql_query(query, conn)
+            cursor = conn.cursor()
+            cursor.execute(query)
+            filas = cursor.fetchall()
+            # Se arma el DataFrame a mano (en vez de pd.read_sql_query) porque
+            # esta conexión devuelve filas como diccionarios (RealDictCursor,
+            # para el resto del código); read_sql_query asume filas tipo
+            # tupla en una conexión DBAPI2 pelada y el comportamiento con
+            # filas tipo dict varía entre versiones de pandas - con
+            # pd.DataFrame(filas, columns=...) no hay ambigüedad posible.
+            columnas = [c.name for c in cursor.description]
+            df = pd.DataFrame(filas, columns=columnas)
             df.to_excel(writer, sheet_name=nombre_hoja, index=False)
 
     _liberar_conexion(conn)
