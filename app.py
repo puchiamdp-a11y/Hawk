@@ -32,185 +32,288 @@ URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=x
 # ============================================
 st.markdown("""
 <style>
+    :root{
+        --ink:#0B0F19; --ink-soft:#232838; --muted:#6B7280; --faint:#9CA3AF;
+        --primary:#2E5CFF; --primary-2:#7B61FF; --cyan:#00C2FF;
+        --bg:#F5F7FC; --white:#FFFFFF; --line:#E7EAF3; --line-soft:#EEF1F8;
+        --success:#12B76A; --success-bg:#E7F9EF; --success-ink:#0A8F53;
+        --danger:#F5384E; --danger-bg:#FDEAEC; --danger-ink:#C81E3A;
+        --warning:#FF9F0A; --warning-bg:#FFF4E0; --warning-ink:#B26B00;
+        --grad-hero: linear-gradient(135deg,#2E5CFF 0%,#6A4CFF 55%,#00C2FF 100%);
+        --grad-icon: linear-gradient(135deg,#2E5CFF,#7B61FF);
+        --shadow-sm: 0 2px 8px rgba(16,24,64,.06);
+        --shadow-md: 0 10px 28px rgba(16,24,64,.10);
+    }
+
     * {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    body {
-        background-color: #FFFFFF !important;
+
+    body, .stApp {
+        background-color: var(--bg) !important;
+        background-image:
+            radial-gradient(900px 420px at 92% -8%, rgba(123,97,255,.10), transparent 60%),
+            radial-gradient(700px 360px at -4% 8%, rgba(46,92,255,.08), transparent 55%) !important;
+        color: var(--ink);
     }
-    
+
     .main {
         padding: 0.5rem;
     }
-    
+
     h1, h2, h3 {
         margin: 0.5rem 0 !important;
         padding: 0 !important;
     }
-    
+
     h1 {
         font-size: 24px !important;
     }
-    
+
     h3 {
         font-size: 16px !important;
         margin-top: 1rem !important;
     }
-    
+
+    /* HERO (título principal de cada pantalla) */
+    .hawk-hero {
+        border-radius: 22px;
+        padding: 26px 30px;
+        margin: 4px 0 22px 0;
+        background: var(--grad-hero);
+        box-shadow: 0 20px 48px rgba(46,92,255,.30);
+        position: relative;
+        overflow: hidden;
+    }
+    .hawk-hero::before {
+        content: "";
+        position: absolute; top: -60px; right: -40px; width: 220px; height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,.16), transparent 70%);
+    }
+    .hawk-hero::after {
+        content: "";
+        position: absolute; bottom: -90px; left: 30%; width: 200px; height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0,194,255,.20), transparent 70%);
+    }
+    .hawk-hero-kicker {
+        position: relative;
+        font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8);
+        text-transform: uppercase; letter-spacing: .8px;
+    }
+    .hawk-hero-title {
+        position: relative;
+        margin: 6px 0 0 0; font-size: 25px; font-weight: 700; color: #fff; letter-spacing: -.4px;
+    }
+    .hawk-hero-subtitle {
+        position: relative;
+        font-size: 13px; color: rgba(255,255,255,.85); margin-top: 6px; max-width: 640px;
+    }
+    .hawk-header {
+        margin: 4px 0 22px 0;
+    }
+    .hawk-header h1 {
+        margin: 0 !important; font-size: 26px !important; font-weight: 700 !important;
+        color: var(--ink) !important; letter-spacing: -.4px;
+    }
+    .hawk-header .hawk-header-subtitle {
+        font-size: 13.5px; color: var(--muted); margin-top: 5px; font-weight: 500;
+    }
+
+    /* Card genérica reutilizable, estilo Blister Assist */
+    .card {
+        background: var(--white);
+        border: 1px solid var(--line-soft);
+        border-radius: 18px;
+        box-shadow: var(--shadow-sm);
+    }
+    .icon-chip {
+        width: 38px; height: 38px; border-radius: 11px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        box-shadow: 0 6px 14px rgba(46,92,255,.24);
+        font-size: 18px;
+    }
+    .stat-label {
+        font-size: 11px; font-weight: 700; color: var(--muted);
+        text-transform: uppercase; letter-spacing: .6px;
+    }
+    .stat-grad {
+        font-weight: 800;
+        background: var(--grad-icon);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
     .metrics-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
         margin: 10px 0;
     }
-    
+
     .metric-box {
-        background-color: #1E3A8A;
+        background: var(--grad-icon);
         color: white;
-        padding: 12px;
-        border-radius: 8px;
+        padding: 14px;
+        border-radius: 14px;
         text-align: center;
+        box-shadow: var(--shadow-sm);
     }
-    
+
     .metric-title {
         font-size: 11px;
         opacity: 0.9;
         margin-bottom: 4px;
     }
-    
+
     .metric-value {
         font-size: 18px;
         font-weight: bold;
         margin: 3px 0;
         word-break: break-word;
     }
-    
+
     .metric-subtitle {
         font-size: 9px;
         opacity: 0.85;
     }
-    
+
     .emission-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0;
         margin: 10px 0;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
+        background: var(--white);
+        border: 1px solid var(--line-soft);
+        border-radius: 18px;
+        box-shadow: var(--shadow-sm);
         overflow: hidden;
     }
-    
+
     .emission-cell {
-        padding: 12px;
-        border-right: 1px solid #E5E7EB;
-        border-bottom: 1px solid #E5E7EB;
+        padding: 16px;
+        border-right: 1px solid var(--line-soft);
+        border-bottom: 1px solid var(--line-soft);
         text-align: center;
     }
-    
+
     .emission-cell:nth-child(2n) {
         border-right: none;
     }
-    
+
     .emission-cell:nth-last-child(-n+2) {
         border-bottom: none;
     }
-    
+
     .emission-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #666;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: .5px;
         margin-bottom: 8px;
     }
-    
+
     .emission-value {
-        font-size: 32px;
-        font-weight: bold;
-        color: #1E3A8A;
+        font-size: 30px;
+        font-weight: 800;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
     }
-    
+
     .alert-card {
-        background-color: #5B7FC8;
+        background: var(--grad-icon);
         color: white;
         padding: 12px;
-        border-radius: 8px;
+        border-radius: 12px;
         margin: 8px 0;
+        box-shadow: var(--shadow-sm);
     }
-    
+
     .alert-title {
         font-size: 15px;
         font-weight: bold;
         margin-bottom: 6px;
     }
-    
+
     .alert-content {
         font-size: 12px;
         line-height: 1.5;
     }
-    /* TARJETAS DE INFORMACIÓN - CLIENTES VIP */
+    /* TARJETAS DE INFORMACIÓN - CLIENTES VIP / KPIs */
     .info-card {
-        background: linear-gradient(135deg, #1E3A8A 0%, #2E5AB5 100%);
-        color: white;
+        background: var(--white);
+        color: var(--ink);
         padding: 20px;
-        border-radius: 12px;
+        border-radius: 18px;
         margin-bottom: 20px;
+        border: 1px solid var(--line-soft);
+        box-shadow: var(--shadow-sm);
     }
-    
+
     .info-card h3 {
-        color: white !important;
+        color: var(--ink) !important;
         margin-top: 0 !important;
-        font-size: 18px !important;
+        font-size: 15px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: .5px;
     }
-    
+
     .info-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
         margin-bottom: 15px;
     }
-    
+
     .info-item {
-        background-color: rgba(255, 255, 255, 0.1);
-        padding: 12px;
-        border-radius: 8px;
-        border-left: 3px solid #FFD700;
+        background: linear-gradient(160deg,#F0F3FF,#fff);
+        padding: 12px 14px;
+        border-radius: 11px;
+        border: 1px solid var(--line-soft);
+        border-left: 3px solid var(--primary-2);
+        box-shadow: var(--shadow-sm);
     }
-    
+
     .info-label {
         font-size: 11px;
-        opacity: 0.9;
+        color: var(--muted);
         margin-bottom: 5px;
         text-transform: uppercase;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: .5px;
     }
-    
+
     .info-value {
         font-size: 16px;
-        font-weight: bold;
+        font-weight: 700;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
     }
-    
+
     .stMetric {
         background-color: transparent;
         padding: 0 !important;
     }
-    
+
     .stMetric > div:first-child {
         font-size: 10px !important;
     }
-    
+
     .stMetric label {
         font-size: 10px !important;
     }
-    
+
     /* SIDEBAR COMPACTO Y PROFESIONAL */
     [data-testid="stSidebar"] {
-        width: 180px !important;
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E5E7EB;
+        width: 210px !important;
+        background-color: var(--white) !important;
+        border-right: 1px solid var(--line-soft);
     }
-    
+
     [data-testid="stSidebarContent"] {
-        width: 180px !important;
+        width: 210px !important;
     }
 
     .stButton {
@@ -220,59 +323,66 @@ st.markdown("""
    .stButton > button {
         width: 100%;
         height: auto !important;
-        font-size: 13px !important;
+        font-size: 13.5px !important;
         font-weight: 600 !important;
-        padding: 8px 12px !important;
-        border-radius: 8px !important;
-        background-color: #F3F4F6 !important;
-        color: #1E3A8A !important;
-        border: 1px solid #E5E7EB !important;
-        margin-bottom: 10px !important;
-        transition: all 0.3s ease !important;
+        padding: 10px 13px !important;
+        border-radius: 12px !important;
+        background-color: transparent !important;
+        color: var(--ink-soft) !important;
+        border: none !important;
+        margin-bottom: 4px !important;
+        transition: background .2s ease, transform .2s ease !important;
         box-shadow: none !important;
+        text-align: left;
     }
-    
+
     .stButton > button:hover {
-        color: #2E5AB5 !important;
-        background-color: #E0E7FF !important;
-        transform: scale(1.05) !important;
-        border: 1px solid #C7D2FE !important;
+        color: var(--primary) !important;
+        background-color: #F0F3FF !important;
+        transform: translateX(2px) !important;
+        border: none !important;
     }
-    
-    .stButton > button:active {
-        color: #1a2a5c !important;
-        background-color: #C7D2FE !important;
-        transform: scale(0.95) !important;
+
+    .stButton > button:active,
+    .stButton > button:focus:not(:hover) {
+        color: #fff !important;
+        background: var(--grad-icon) !important;
+        box-shadow: 0 8px 18px rgba(46,92,255,.32) !important;
     }
      /* TARJETAS DE SECCIONES */
     .section-card {
-        background: linear-gradient(135deg, #1E3A8A 0%, #2E5AB5 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
+        background: var(--white);
+        color: var(--ink);
+        padding: 18px 20px;
+        border-radius: 18px;
         margin-bottom: 15px;
-        border-left: 3px solid #2563EB;
+        border: 1px solid var(--line-soft);
+        border-left: 3px solid var(--primary);
+        box-shadow: var(--shadow-sm);
     }
 
     .section-title {
-        font-size: 18px;
-        font-weight: bold;
-        color: white !important;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--ink) !important;
         margin: 0 !important;
+        text-transform: uppercase;
+        letter-spacing: .4px;
     }
 
     .section-title-simple {
         font-size: 18px;
         font-weight: bold;
-        color: #1E3A8A !important;
+        color: var(--ink) !important;
         margin: 15px 0 !important;
         padding: 0 !important;
         background: none !important;
     }
 
     .section-divider {
-        border-top: 2px dotted #2563EB;
-        margin: 20px 0 15px 0;
+        border: none;
+        border-top: 1px solid var(--line-soft);
+        margin: 26px 0 20px 0;
     }
 
     .alert-container {
@@ -283,24 +393,29 @@ st.markdown("""
     }
 
     .alert-card-inline {
-        background-color: #5B7FC8;
-        color: white;
-        padding: 12px;
-        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        border-left: 3px solid var(--warning);
+        box-shadow: var(--shadow-sm);
         flex: 0 1 auto;
         min-width: fit-content;
         width: auto;
     }
 
     .alert-title-inline {
-        font-size: 15px;
-        font-weight: bold;
+        font-size: 14px;
+        font-weight: 700;
         margin-bottom: 6px;
+        color: var(--ink);
     }
 
     .alert-content-inline {
         font-size: 12px;
         line-height: 1.5;
+        color: var(--muted);
     }
 
     .resumen-table {
@@ -308,18 +423,24 @@ st.markdown("""
         border-collapse: collapse;
         margin-top: 20px;
         font-size: 13px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
     }
 
     .resumen-table td, .resumen-table th {
         padding: 10px;
         text-align: right;
-        border: 1px solid #E5E7EB;
+        border: 1px solid var(--line-soft);
     }
 
     .resumen-table th {
-        font-weight: bold;
+        font-weight: 700;
         color: white;
         text-align: center;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        font-size: 11px;
     }
 
     .resumen-table td:first-child, .resumen-table th:first-child {
@@ -327,30 +448,30 @@ st.markdown("""
     }
 
     .resumen-header-garantias {
-        background-color: #8DD68D;
+        background: linear-gradient(90deg,#0F9D58,#12B76A);
         color: white;
     }
 
     .resumen-header-asistencias {
-        background-color: #FFB380;
+        background: linear-gradient(90deg,#2E5CFF,#7B61FF);
         color: white;
     }
 
     .resumen-header-total {
-        background-color: #9DBDE0;
+        background: linear-gradient(90deg,#12183099,#2E5CFF);
         color: white;
     }
 
     .resumen-row-garantias {
-        background-color: #E8F5E8;
+        background-color: var(--success-bg);
     }
 
     .resumen-row-asistencias {
-        background-color: #FFF4E6;
+        background-color: var(--warning-bg);
     }
 
     .resumen-row-total {
-        background-color: #E8F1F7;
+        background-color: #F0F3FF;
     }
 
     .resumen-cant {
@@ -362,16 +483,18 @@ st.markdown("""
     }
 
     .provider-header {
-        background-color: #E0E7FF;
-        border-left: 4px solid #1E3A8A;
-        padding: 12px;
-        border-radius: 8px;
+        background: #F0F3FF;
+        border: 1px solid var(--line-soft);
+        border-left: 4px solid var(--primary);
+        padding: 14px;
+        border-radius: 12px;
         margin-bottom: 12px;
         margin-top: 20px;
+        box-shadow: var(--shadow-sm);
     }
-    
+
     .provider-header h4 {
-        color: #1E3A8A !important;
+        color: var(--primary) !important;
         margin: 0 !important;
     }
 
@@ -723,7 +846,13 @@ if "Post Emision" in datos:
 # PANTALLA 1: RESUMEN EJECUTIVO
 # ============================================
 if pantalla_actual == "Resumen Ejecutivo":
-    st.title("Hawk - Reportes Internos")
+    st.markdown("""
+    <div class="hawk-hero">
+        <div class="hawk-hero-kicker">Reportes internos</div>
+        <h1 class="hawk-hero-title">Hawk — Resumen Ejecutivo</h1>
+        <div class="hawk-hero-subtitle">Vista consolidada de Garantías, Asistencias y estado de emisión del mes.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # BLOQUE 4: RESUMEN - MES ACTUAL (PRIMERO)
     if ultima_fila_resumen is not None:
@@ -754,72 +883,48 @@ if pantalla_actual == "Resumen Ejecutivo":
 
             # GARANTÍAS
             with col1:
-                st.markdown("""
-                <div class="info-card">
-                <h3 style="color: #00AA00 !important;">🛡️ GARANTÍAS</h3>
-                """, unsafe_allow_html=True)
-
                 st.markdown(f"""
-                <div class="info-item" style="border-left-color: #00AA00;">
-                    <div class="info-label">Cantidad</div>
-                    <div class="info-value">{garantias_cant:,}</div>
+                <div class="card" style="padding: 22px 24px;">
+                    <div class="icon-chip" style="background: linear-gradient(135deg,#12B76A,#3DD68C); margin-bottom: 14px;">🛡️</div>
+                    <div class="stat-label">Garantías · cantidad</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{garantias_cant:,}</div>
+                    <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
+                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${garantias_premio:,.0f}</span>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-
-                st.markdown(f"""
-                <div class="info-item" style="border-left-color: #00AA00; margin-top: 10px;">
-                    <div class="info-label">Premio</div>
-                    <div class="info-value">${garantias_premio:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
 
             # ASISTENCIAS
             with col2:
-                st.markdown("""
-                <div class="info-card">
-                <h3 style="color: #FF6600 !important;">📞 ASISTENCIAS</h3>
-                """, unsafe_allow_html=True)
-
                 st.markdown(f"""
-                <div class="info-item" style="border-left-color: #FF6600;">
-                    <div class="info-label">Cantidad</div>
-                    <div class="info-value">{asistencias_cant:,}</div>
+                <div class="card" style="padding: 22px 24px;">
+                    <div class="icon-chip" style="background: var(--grad-icon); margin-bottom: 14px;">📞</div>
+                    <div class="stat-label">Asistencias · cantidad</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{asistencias_cant:,}</div>
+                    <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
+                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${asistencias_premio:,.0f}</span>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-
-                st.markdown(f"""
-                <div class="info-item" style="border-left-color: #FF6600; margin-top: 10px;">
-                    <div class="info-label">Premio</div>
-                    <div class="info-value">${asistencias_premio:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
 
             # TOTAL
             with col3:
-                st.markdown("""
-                <div class="info-card">
-                <h3 style="color: #1E3A8A !important;">📈 TOTAL</h3>
-                """, unsafe_allow_html=True)
-
                 st.markdown(f"""
-                <div class="info-item" style="border-left-color: #1E3A8A;">
-                    <div class="info-label">Cantidad</div>
-                    <div class="info-value">{total_cant:,}</div>
+                <div class="card" style="padding: 22px 24px; background: linear-gradient(160deg,#fff,#F5F7FF);">
+                    <div class="icon-chip" style="background: linear-gradient(135deg,#0B0F19,#3D4560); margin-bottom: 14px;">📈</div>
+                    <div class="stat-label">Total · cantidad</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{total_cant:,}</div>
+                    <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
+                        <span class="stat-grad" style="font-size: 18px; font-variant-numeric: tabular-nums;">${total_premio:,.0f}</span>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-
-                st.markdown(f"""
-                <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
-                    <div class="info-label">Premio</div>
-                    <div class="info-value">${total_premio:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
 
         except (ValueError, IndexError) as e:
             st.warning(f"⚠️ Error al procesar datos de resumen: {e}")
@@ -967,7 +1072,12 @@ if pantalla_actual == "Resumen Ejecutivo":
 # - Separadores entre columnas: 3px solid borders (#1E3A8A para datos, #FF6B00 para totales)
 # ============================================
 elif pantalla_actual == "Fichas VIP":
-    st.title("Fichas de Clientes VIP")
+    st.markdown("""
+    <div class="hawk-header">
+        <h1>Fichas de Clientes VIP</h1>
+        <div class="hawk-header-subtitle">Datos comerciales y facturación por cliente</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     clientes_vip = {
         "SYNA": "FC SYNA",
@@ -1274,7 +1384,12 @@ elif pantalla_actual == "Fichas VIP":
 # PANTALLA 3: COSTOS SANCOR
 # ============================================
 elif pantalla_actual == "Machete Costos":
-    st.title("Costos Sancor")
+    st.markdown("""
+    <div class="hawk-header">
+        <h1>Costos Sancor</h1>
+        <div class="hawk-header-subtitle">Matriz de coberturas y costos</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     if "Costos Sancor" in datos:
         df_costos = datos["Costos Sancor"]
@@ -1328,7 +1443,12 @@ elif pantalla_actual == "Machete Costos":
 # PANTALLA 4: FACTURACIÓN DE PROVEEDORES
 # ============================================
 elif pantalla_actual == "Proveedores":
-    st.title("Facturación de Proveedores")
+    st.markdown("""
+    <div class="hawk-header">
+        <h1>Facturación de Proveedores</h1>
+        <div class="hawk-header-subtitle">Comparativa de facturación por proveedor</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     if "FC Proveedores" in datos:
         df_prov = datos["FC Proveedores"]
@@ -1417,7 +1537,12 @@ elif pantalla_actual == "Cobranzas SYNA":
 # PANTALLA 6: POST EMISIÓN
 # ============================================
 elif pantalla_actual == "Post Emisión":
-    st.title("Post Emisión")
+    st.markdown("""
+    <div class="hawk-header">
+        <h1>Post Emisión</h1>
+        <div class="hawk-header-subtitle">Detalle de facturación posterior a la emisión</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if "Post Emision" in datos and ultima_fila_datos is not None:
         # SECCIÓN SUPERIOR: ÚLTIMO MES CON DATOS

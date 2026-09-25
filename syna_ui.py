@@ -106,21 +106,21 @@ def _estilos():
     st.markdown(f"""
     <style>
         {SCOPE} {{
-            --primary: #2563EB;
-            --primary-dark: #1E3A8A;
-            --accent: #DC2626;
-            --success: #16A34A;
-            --bg-section: #F8FAFC;
-            --text-h1: #0F172A;
-            --text-h2: #1E293B;
-            --text-h3: #334155;
-            --text-body: #475569;
-            --text-light: #64748B;
-            --border: #E2E8F0;
-            --debe-bg: #FEF2F2;
-            --debe-text: #B91C1C;
-            --haber-bg: #F0FDF4;
-            --haber-text: #15803D;
+            --primary: #2E5CFF;
+            --primary-dark: #1D3FB8;
+            --accent: #F5384E;
+            --success: #12B76A;
+            --bg-section: #F5F7FC;
+            --text-h1: #0B0F19;
+            --text-h2: #232838;
+            --text-h3: #232838;
+            --text-body: #6B7280;
+            --text-light: #6B7280;
+            --border: #E7EAF3;
+            --debe-bg: #FDEAEC;
+            --debe-text: #C81E3A;
+            --haber-bg: #E7F9EF;
+            --haber-text: #0A8F53;
             max-width: 1100px;
             margin: 0 auto;
         }}
@@ -154,11 +154,14 @@ def _estilos():
         }}
 
         {SCOPE} .syna-banner {{
-            background: linear-gradient(120deg, #1E3A8A 0%, #2563EB 60%, #3B82F6 100%);
-            border-radius: 14px;
-            padding: 22px 26px;
+            background: linear-gradient(135deg,#2E5CFF 0%,#6A4CFF 55%,#00C2FF 100%);
+            border-radius: 22px;
+            padding: 26px 28px;
             margin-bottom: 20px;
             color: white;
+            box-shadow: 0 20px 48px rgba(46,92,255,.30);
+            position: relative;
+            overflow: hidden;
         }}
 
         {SCOPE} .syna-banner h1 {{
@@ -173,7 +176,7 @@ def _estilos():
         {SCOPE} .syna-form-box {{
             background-color: var(--bg-section);
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 18px 20px;
             margin-bottom: 16px;
         }}
@@ -185,12 +188,14 @@ def _estilos():
         }}
 
         {SCOPE} .stButton > button {{
-            background-color: var(--primary) !important;
+            background: linear-gradient(135deg,#2E5CFF,#7B61FF) !important;
             color: white !important;
             font-weight: 600 !important;
-            border-radius: 8px !important;
+            border-radius: 12px !important;
             border: none !important;
             padding: 8px 18px !important;
+            box-shadow: 0 6px 14px rgba(46,92,255,.24) !important;
+            transition: transform .2s ease !important;
         }}
 
         {SCOPE} .stButton > button * {{
@@ -208,9 +213,9 @@ def _estilos():
         {SCOPE} .syna-card {{
             background: #FFFFFF;
             border: 1px solid var(--border);
-            border-radius: 12px;
+            border-radius: 18px;
             padding: 16px 18px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 2px 8px rgba(16,24,64,.06);
         }}
 
         {SCOPE} .syna-card-label {{
@@ -255,13 +260,14 @@ def _estilos():
             font-size: 13px;
             background: white;
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 16px;
             overflow: hidden;
+            box-shadow: 0 2px 8px rgba(16,24,64,.06);
         }}
 
         {SCOPE} .syna-table th {{
-            background-color: var(--bg-section);
-            color: var(--text-h3);
+            background: linear-gradient(90deg,#12183099,var(--primary));
+            color: white;
             padding: 10px 12px;
             text-align: left;
             font-weight: 700;
@@ -292,9 +298,9 @@ def _estilos():
         {SCOPE} .syna-haber {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
 
         {SCOPE} .syna-filters {{
-            background: #EFF6FF;
-            border: 1px solid #BFDBFE;
-            border-radius: 12px;
+            background: #F0F3FF;
+            border: 1px solid var(--border);
+            border-radius: 16px;
             padding: 16px 18px;
             margin-bottom: 18px;
         }}
