@@ -1451,13 +1451,7 @@ elif pantalla_actual == "Machete Costos":
     
     if "Costos Sancor" in datos:
         df_costos = datos["Costos Sancor"]
-        
-        st.markdown("""
-        <div class="section-card">
-            <div class="section-title">💰 Matriz de Coberturas y Costos</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
+
         # Extraer datos
         df_tabla = df_costos.iloc[2:16].copy()
         
