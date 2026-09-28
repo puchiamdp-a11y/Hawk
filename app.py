@@ -27,6 +27,13 @@ st.set_page_config(
 GOOGLE_DRIVE_ID = "1gZPD9XUspcN8e4FGrgdEl1AacDew68RU"
 URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=xlsx"
 
+
+def fmt_ar(valor, decimales=0):
+    """Formatea un numero con separador de miles '.' y decimal ',' (formato
+    argentino), en vez del '{:,}' de Python que da miles con ',' y decimal '.'"""
+    texto = f"{valor:,.{decimales}f}"
+    return texto.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
 # ============================================
 # ESTILOS CORPORATIVOS (OPTIMIZADO PARA MOBILE)
 # ============================================
@@ -945,11 +952,11 @@ if pantalla_actual == "Resumen Ejecutivo":
                 <div class="card" style="padding: 22px 24px;">
                     <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">🛡️</div>
                     <div class="stat-label">Garantías · cantidad</div>
-                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{garantias_cant:,}</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{fmt_ar(garantias_cant)}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
                     <div style="display: flex; justify-content: space-between; align-items: baseline;">
                         <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
-                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${garantias_premio:,.0f}</span>
+                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${fmt_ar(garantias_premio)}</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -960,11 +967,11 @@ if pantalla_actual == "Resumen Ejecutivo":
                 <div class="card" style="padding: 22px 24px;">
                     <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">📞</div>
                     <div class="stat-label">Asistencias · cantidad</div>
-                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{asistencias_cant:,}</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{fmt_ar(asistencias_cant)}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
                     <div style="display: flex; justify-content: space-between; align-items: baseline;">
                         <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
-                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${asistencias_premio:,.0f}</span>
+                        <span class="stat-grad" style="font-size: 17px; font-variant-numeric: tabular-nums;">${fmt_ar(asistencias_premio)}</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -975,11 +982,11 @@ if pantalla_actual == "Resumen Ejecutivo":
                 <div class="card" style="padding: 22px 24px; background: linear-gradient(160deg,#fff,#F5F7FF);">
                     <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">📈</div>
                     <div class="stat-label">Total · cantidad</div>
-                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{total_cant:,}</div>
+                    <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{fmt_ar(total_cant)}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
                     <div style="display: flex; justify-content: space-between; align-items: baseline;">
                         <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Premio</span>
-                        <span class="stat-grad" style="font-size: 18px; font-variant-numeric: tabular-nums;">${total_premio:,.0f}</span>
+                        <span class="stat-grad" style="font-size: 18px; font-variant-numeric: tabular-nums;">${fmt_ar(total_premio)}</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1000,7 +1007,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             meses_str = ", ".join(datos_comercio['meses_pendientes'])
             certs = int(pd.to_numeric(datos_comercio['certificados'], errors='coerce') or 0)
             premio = float(pd.to_numeric(datos_comercio['premio'], errors='coerce') or 0)
-            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Cert:</strong> {certs:,} | <strong>Premio:</strong> ${premio:,.2f}</div></div>'
+            tarjetas_html += f'<div class="alert-card-inline"><div class="alert-title-inline">{comercio}</div><div class="alert-content-inline"><strong>Meses:</strong> {meses_str}<br><strong>Cert:</strong> {fmt_ar(certs)} | <strong>Premio:</strong> ${fmt_ar(premio, 2)}</div></div>'
     tarjetas_html += '</div>'
     st.markdown(tarjetas_html, unsafe_allow_html=True)
 
@@ -1101,15 +1108,15 @@ if pantalla_actual == "Resumen Ejecutivo":
 
                 tabla_html += '<tr>'
                 tabla_html += f'<td style="text-align: left; font-weight: bold;">{mes}</td>'
-                tabla_html += f'<td class="resumen-row-garantias resumen-cant">{gtr_cant:,.0f}</td>'
-                tabla_html += f'<td class="resumen-row-garantias resumen-premio">${gtr_premio:,.2f}</td>'
-                tabla_html += f'<td class="resumen-row-garantias">${gtr_costo:,.2f}</td>'
-                tabla_html += f'<td class="resumen-row-asistencias resumen-cant">{ast_cant:,.0f}</td>'
-                tabla_html += f'<td class="resumen-row-asistencias resumen-premio">${ast_premio:,.2f}</td>'
-                tabla_html += f'<td class="resumen-row-asistencias">${ast_costo:,.2f}</td>'
-                tabla_html += f'<td class="resumen-row-total resumen-cant">{tot_cant:,.0f}</td>'
-                tabla_html += f'<td class="resumen-row-total resumen-premio">${tot_premio:,.2f}</td>'
-                tabla_html += f'<td class="resumen-row-total">${tot_costo:,.2f}</td>'
+                tabla_html += f'<td class="resumen-row-garantias resumen-cant">{fmt_ar(gtr_cant)}</td>'
+                tabla_html += f'<td class="resumen-row-garantias resumen-premio">${fmt_ar(gtr_premio, 2)}</td>'
+                tabla_html += f'<td class="resumen-row-garantias">${fmt_ar(gtr_costo, 2)}</td>'
+                tabla_html += f'<td class="resumen-row-asistencias resumen-cant">{fmt_ar(ast_cant)}</td>'
+                tabla_html += f'<td class="resumen-row-asistencias resumen-premio">${fmt_ar(ast_premio, 2)}</td>'
+                tabla_html += f'<td class="resumen-row-asistencias">${fmt_ar(ast_costo, 2)}</td>'
+                tabla_html += f'<td class="resumen-row-total resumen-cant">{fmt_ar(tot_cant)}</td>'
+                tabla_html += f'<td class="resumen-row-total resumen-premio">${fmt_ar(tot_premio, 2)}</td>'
+                tabla_html += f'<td class="resumen-row-total">${fmt_ar(tot_costo, 2)}</td>'
                 tabla_html += '</tr>'
 
         tabla_html += '</table>'
@@ -1224,7 +1231,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     df_display = df_table.copy()
                     df_display['GAR_Cant'] = pd.to_numeric(df_display['GAR_Cant'], errors='coerce').fillna(0).astype(int)
-                    df_display['GAR_Premio'] = df_display['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                    df_display['GAR_Premio'] = df_display['GAR_Premio'].apply(lambda x: f"${fmt_ar(x)}" if pd.notna(x) and x != 0 else "")
 
                     st.dataframe(df_display, use_container_width=True, hide_index=True)
                 
@@ -1250,7 +1257,7 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>📞 ASISTENCIAS</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
-                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${fmt_ar(x)}")
                         df_ass.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_ass, use_container_width=False, hide_index=True)
 
@@ -1262,7 +1269,7 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GAR SPM</b></div>", unsafe_allow_html=True)
                         df_spm = df_table[['Mes', 'GAR_SPM_Cant', 'GAR_SPM_Premio']].copy()
                         df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
-                        df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${fmt_ar(x)}")
                         df_spm.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_spm, use_container_width=False, hide_index=True)
 
@@ -1274,7 +1281,7 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GAR CPM</b></div>", unsafe_allow_html=True)
                         df_cpm = df_table[['Mes', 'GAR_CPM_Cant', 'GAR_CPM_Premio']].copy()
                         df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
-                        df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${fmt_ar(x)}")
                         df_cpm.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_cpm, use_container_width=False, hide_index=True)
 
@@ -1286,7 +1293,7 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>💰 TOTAL GTIAS</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio']].copy()
                         df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
-                        df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${fmt_ar(x)}")
                         df_tot.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_tot, use_container_width=False, hide_index=True)
 
@@ -1298,7 +1305,7 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>🌟 TOTAL GRAL</b></div>", unsafe_allow_html=True)
                         df_gen = df_table[['Mes', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
                         df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
-                        df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
+                        df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${fmt_ar(x)}")
                         df_gen.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gen, use_container_width=False, hide_index=True)
 
@@ -1362,14 +1369,14 @@ elif pantalla_actual == "Fichas VIP":
                     with col1:
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
-                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${fmt_ar(x)}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col2:
                         st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
                         df_deuda = df_table[['Mes', 'Restante_Deuda']].copy()
-                        df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${fmt_ar(x)}" if x != 0 else "-")
                         df_deuda.columns = ['Mes', 'Deuda']
                         st.dataframe(df_deuda, use_container_width=True, hide_index=True)
 
@@ -1392,7 +1399,7 @@ elif pantalla_actual == "Fichas VIP":
                     with col1:
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
-                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${fmt_ar(x)}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
@@ -1416,21 +1423,21 @@ elif pantalla_actual == "Fichas VIP":
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>Asistencias</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = pd.to_numeric(df_ass['ASS_Cant'], errors='coerce').fillna(0).astype(int)
-                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${fmt_ar(x)}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_ass, use_container_width=True, hide_index=True)
 
                     with col2:
                         st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>Garantías</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Cant'] = pd.to_numeric(df_gar['GAR_Cant'], errors='coerce').fillna(0).astype(int)
-                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${fmt_ar(x)}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col3:
                         st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>Total</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOT_Cant', 'TOT_Premio']].copy()
                         df_tot['TOT_Cant'] = pd.to_numeric(df_tot['TOT_Cant'], errors='coerce').fillna(0).astype(int)
-                        df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
+                        df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${fmt_ar(x)}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_tot, use_container_width=True, hide_index=True)
             
             else:
@@ -1528,7 +1535,7 @@ elif pantalla_actual == "Proveedores":
             df_cardinal = df_tabla[['Mes', 'Cardinal_Cant', 'Cardinal_Precio']].copy()
             df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
             df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
-            df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+            df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_cardinal, hide_index=True, width=600)
 
         # ADDIUVA
@@ -1536,7 +1543,7 @@ elif pantalla_actual == "Proveedores":
             df_addiuva = df_tabla[['Mes', 'Addiuva_Cant', 'Addiuva_Precio']].copy()
             df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
             df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
-            df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+            df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_addiuva, hide_index=True, width=600)
 
         # LLAMADAS AL DOCTOR - BZR
@@ -1544,7 +1551,7 @@ elif pantalla_actual == "Proveedores":
             df_bzr = df_tabla[['Mes', 'BZR_Cant', 'BZR_Precio']].copy()
             df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
             df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
-            df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+            df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_bzr, hide_index=True, width=600)
 
         # LLAMADAS AL DOCTOR - GRAL
@@ -1552,7 +1559,7 @@ elif pantalla_actual == "Proveedores":
             df_gral = df_tabla[['Mes', 'GRAL_Cant', 'GRAL_Precio']].copy()
             df_gral.columns = ['Mes', 'Cantidad', 'Precio']
             df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
-            df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+            df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_gral, hide_index=True, width=600)
 
         # IMPRENTA
@@ -1560,7 +1567,7 @@ elif pantalla_actual == "Proveedores":
             df_imprenta = df_tabla[['Mes', 'Imprenta_Cant', 'Imprenta_Precio']].copy()
             df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
             df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
-            df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) and x != 0 else "")
+            df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_imprenta, hide_index=True, width=600)
         
         st.markdown("---")
@@ -1637,14 +1644,14 @@ elif pantalla_actual == "Post Emisión":
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #FF00FF;">
                     <div class="info-label">Cantidad</div>
-                    <div class="info-value">{int(datos_ultimo['GESA']['cant']):,}</div>
+                    <div class="info-value">{fmt_ar(datos_ultimo['GESA']['cant'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #FF00FF; margin-top: 10px;">
                     <div class="info-label">Premio</div>
-                    <div class="info-value">${datos_ultimo['GESA']['premio']:,.0f}</div>
+                    <div class="info-value">${fmt_ar(datos_ultimo['GESA']['premio'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1659,14 +1666,14 @@ elif pantalla_actual == "Post Emisión":
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #0066FF;">
                     <div class="info-label">Cantidad</div>
-                    <div class="info-value">{int(datos_ultimo['BLISTER']['cant']):,}</div>
+                    <div class="info-value">{fmt_ar(datos_ultimo['BLISTER']['cant'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #0066FF; margin-top: 10px;">
                     <div class="info-label">Premio</div>
-                    <div class="info-value">${datos_ultimo['BLISTER']['premio']:,.0f}</div>
+                    <div class="info-value">${fmt_ar(datos_ultimo['BLISTER']['premio'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1681,14 +1688,14 @@ elif pantalla_actual == "Post Emisión":
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #1E3A8A;">
                     <div class="info-label">Cantidad</div>
-                    <div class="info-value">{int(datos_ultimo['TOTALES']['cant']):,}</div>
+                    <div class="info-value">{fmt_ar(datos_ultimo['TOTALES']['cant'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
                     <div class="info-label">Total</div>
-                    <div class="info-value">${datos_ultimo['TOTALES']['total']:,.0f}</div>
+                    <div class="info-value">${fmt_ar(datos_ultimo['TOTALES']['total'])}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1697,7 +1704,7 @@ elif pantalla_actual == "Post Emisión":
                     st.markdown(f"""
                     <div class="info-item" style="border-left-color: #1E3A8A; margin-top: 10px;">
                         <div class="info-label">Ajuste</div>
-                        <div class="info-value">${datos_ultimo['TOTALES']['ajuste']:,.0f}</div>
+                        <div class="info-value">${fmt_ar(datos_ultimo['TOTALES']['ajuste'])}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -1747,17 +1754,17 @@ elif pantalla_actual == "Post Emisión":
 
                         tabla_datos.append({
                             'Mes': mes,
-                            'Cant': int(gesa_cant) if gesa_cant > 0 else '',
-                            'Premio': f"${gesa_premio:,.0f}" if gesa_premio > 0 else '',
-                            'IVA': f"${gesa_iva:,.0f}" if gesa_iva > 0 else '',
-                            'Sellos': f"${gesa_sellos:,.0f}" if gesa_sellos > 0 else '',
-                            'Cant ': int(blister_cant) if blister_cant > 0 else '',
-                            'Premio ': f"${blister_premio:,.0f}" if blister_premio > 0 else '',
-                            'IVA ': f"${blister_iva:,.0f}" if blister_iva > 0 else '',
-                            'Sellos ': f"${blister_sellos:,.0f}" if blister_sellos > 0 else '',
-                            'Cant  ': int(total_cant) if total_cant > 0 else '',
-                            'Total': f"${total_value:,.0f}" if total_value > 0 else '',
-                            'Ajuste': f"${ajuste:,.0f}" if ajuste != 0 else '',
+                            'Cant': fmt_ar(gesa_cant) if gesa_cant > 0 else '',
+                            'Premio': f"${fmt_ar(gesa_premio)}" if gesa_premio > 0 else '',
+                            'IVA': f"${fmt_ar(gesa_iva)}" if gesa_iva > 0 else '',
+                            'Sellos': f"${fmt_ar(gesa_sellos)}" if gesa_sellos > 0 else '',
+                            'Cant ': fmt_ar(blister_cant) if blister_cant > 0 else '',
+                            'Premio ': f"${fmt_ar(blister_premio)}" if blister_premio > 0 else '',
+                            'IVA ': f"${fmt_ar(blister_iva)}" if blister_iva > 0 else '',
+                            'Sellos ': f"${fmt_ar(blister_sellos)}" if blister_sellos > 0 else '',
+                            'Cant  ': fmt_ar(total_cant) if total_cant > 0 else '',
+                            'Total': f"${fmt_ar(total_value)}" if total_value > 0 else '',
+                            'Ajuste': f"${fmt_ar(ajuste)}" if ajuste != 0 else '',
                         })
 
         if tabla_datos:
@@ -1798,15 +1805,15 @@ elif pantalla_actual == "Post Emisión":
             for _, row in df_historico.iterrows():
                 html_tabla += '<tr>'
                 html_tabla += f'<td class="mes-cell">{row["Mes"]}</td>'
-                html_tabla += f'<td class="gesa-cell bold-value">{row["Cant"]:,}</td>'
+                html_tabla += f'<td class="gesa-cell bold-value">{row["Cant"]}</td>'
                 html_tabla += f'<td class="gesa-cell bold-value">{row["Premio"]}</td>'
                 html_tabla += f'<td class="gesa-cell">{row["IVA"]}</td>'
                 html_tabla += f'<td class="gesa-cell">{row["Sellos"]}</td>'
-                html_tabla += f'<td class="blister-cell bold-value">{row["Cant "]:,}</td>'
+                html_tabla += f'<td class="blister-cell bold-value">{row["Cant "]}</td>'
                 html_tabla += f'<td class="blister-cell bold-value">{row["Premio "]}</td>'
                 html_tabla += f'<td class="blister-cell">{row["IVA "]}</td>'
                 html_tabla += f'<td class="blister-cell">{row["Sellos "]}</td>'
-                html_tabla += f'<td class="totales-cell bold-value">{row["Cant  "]:,}</td>'
+                html_tabla += f'<td class="totales-cell bold-value">{row["Cant  "]}</td>'
                 html_tabla += f'<td class="totales-cell bold-value">{row["Total"]}</td>'
                 html_tabla += f'<td class="totales-cell">{row["Ajuste"]}</td>'
                 html_tabla += '</tr>'

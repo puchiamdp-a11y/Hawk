@@ -1250,8 +1250,6 @@ def _tab_balance():
             <div class="syna-card-label">NC disponible (sin aplicar todavía)</div>
             <div class="syna-card-value neutral">${_fmt_monto(total_nc_disponible_view)}</div>
         </div>""", unsafe_allow_html=True)
-    st.caption("Una NC recién cargada no reduce el pendiente hasta que se aplica a una factura (al registrar una ODP en la pestaña Comprobantes). Mientras tanto queda acá como crédito disponible.")
-
     if balance["pagos_sin_aplicar"] > 0:
         st.markdown(f'<div class="syna-alert">Hay ${_fmt_monto(balance["pagos_sin_aplicar"], 2)} en órdenes de pago registradas que todavía no fueron aplicadas a ninguna factura (no impactan el saldo hasta aplicarlas en la pestaña Comprobantes).</div>', unsafe_allow_html=True)
 
