@@ -106,17 +106,17 @@ def _estilos():
     st.markdown(f"""
     <style>
         {SCOPE} {{
-            --primary: #2E5CFF;
-            --primary-dark: #1D3FB8;
+            --primary: #4255FF;
+            --primary-dark: #2F3FCC;
             --accent: #F5384E;
             --success: #12B76A;
-            --bg-section: #F5F7FC;
-            --text-h1: #0B0F19;
-            --text-h2: #232838;
-            --text-h3: #232838;
-            --text-body: #6B7280;
-            --text-light: #6B7280;
-            --border: #E7EAF3;
+            --bg-section: #F6F7FB;
+            --text-h1: #282E3E;
+            --text-h2: #2E3856;
+            --text-h3: #2E3856;
+            --text-body: #586380;
+            --text-light: #586380;
+            --border: #D9DDE8;
             --debe-bg: #FDEAEC;
             --debe-text: #C81E3A;
             --haber-bg: #E7F9EF;
@@ -154,12 +154,12 @@ def _estilos():
         }}
 
         {SCOPE} .syna-banner {{
-            background: linear-gradient(135deg,#2E5CFF 0%,#6A4CFF 55%,#00C2FF 100%);
+            background: linear-gradient(135deg,#4255FF 0%,#6A4CFF 55%,#8AA0FF 100%);
             border-radius: 22px;
             padding: 26px 28px;
             margin-bottom: 20px;
             color: white;
-            box-shadow: 0 20px 48px rgba(46,92,255,.30);
+            box-shadow: 0 20px 48px rgba(66,85,255,.30);
             position: relative;
             overflow: hidden;
         }}
@@ -188,13 +188,13 @@ def _estilos():
         }}
 
         {SCOPE} .stButton > button {{
-            background: linear-gradient(135deg,#2E5CFF,#7B61FF) !important;
+            background: linear-gradient(135deg,#4255FF,#6A4CFF) !important;
             color: white !important;
             font-weight: 600 !important;
             border-radius: 12px !important;
             border: none !important;
             padding: 8px 18px !important;
-            box-shadow: 0 6px 14px rgba(46,92,255,.24) !important;
+            box-shadow: 0 6px 14px rgba(66,85,255,.24) !important;
             transition: transform .2s ease !important;
         }}
 
@@ -215,7 +215,7 @@ def _estilos():
             border: 1px solid var(--border);
             border-radius: 18px;
             padding: 16px 18px;
-            box-shadow: 0 2px 8px rgba(16,24,64,.06);
+            box-shadow: 0 2px 8px rgba(40,46,62,.06);
         }}
 
         {SCOPE} .syna-card-label {{
@@ -262,7 +262,7 @@ def _estilos():
             border: 1px solid var(--border);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(16,24,64,.06);
+            box-shadow: 0 2px 8px rgba(40,46,62,.06);
         }}
 
         {SCOPE} .syna-table th {{
@@ -298,7 +298,7 @@ def _estilos():
         {SCOPE} .syna-haber {{ background: var(--debe-bg);  color: var(--debe-text);  font-weight: 700; }}
 
         {SCOPE} .syna-filters {{
-            background: #F0F3FF;
+            background: #EDEFFF;
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 16px 18px;
