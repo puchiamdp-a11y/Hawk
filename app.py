@@ -641,11 +641,17 @@ if query_params.get("role") == "viewer":
 # CARGAR DATOS (CON CACHE OPTIMIZADO)
 # ============================================
 import time
+import threading
 from datetime import datetime
 
-@st.cache_data(ttl=300)  # Cache de 5 minutos (antes era 1 hora)
+CACHE_TTL_SEGUNDOS = 1800  # 30 min
+REFRESH_SEGUNDO_PLANO_SEGUNDOS = 1500  # 25 min: se refresca ANTES de que venza
+                                        # el cache, para que ningun usuario sea
+                                        # quien dispare la descarga lenta (20-30s).
+
+@st.cache_data(ttl=CACHE_TTL_SEGUNDOS)
 def cargar_datos():
-    """Carga datos frescos de Google Drive (con cache de 5 min)"""
+    """Carga datos frescos de Google Drive (con cache de 30 min)"""
     response = requests.get(URL, timeout=10)
     archivo_excel = BytesIO(response.content)
 
@@ -656,6 +662,35 @@ def cargar_datos():
         datos[pestaña] = pd.read_excel(archivo_excel, sheet_name=pestaña)
 
     return datos
+
+
+def _mantener_cache_tibio():
+    """Hilo en segundo plano: refresca el cache de forma periodica para que
+    el usuario nunca sea quien espere la descarga del Excel. Corre una unica
+    vez por proceso (ver _iniciar_hilo_background mas abajo)."""
+    while True:
+        time.sleep(REFRESH_SEGUNDO_PLANO_SEGUNDOS)
+        try:
+            cargar_datos()
+        except Exception:
+            # Un fallo puntual de red no debe matar el hilo: se reintenta
+            # en el proximo ciclo.
+            pass
+
+
+def _iniciar_hilo_background():
+    """Arranca el hilo de refresco solo una vez por proceso. st.session_state
+    es por sesion (no sirve para esto); se usa un atributo de la propia
+    funcion como bandera global del proceso, ya que los globals del modulo
+    persisten entre reruns de Streamlit dentro del mismo worker."""
+    if getattr(_iniciar_hilo_background, "_ya_iniciado", False):
+        return
+    hilo = threading.Thread(target=_mantener_cache_tibio, daemon=True)
+    hilo.start()
+    _iniciar_hilo_background._ya_iniciado = True
+
+
+_iniciar_hilo_background()
 
 # Inicializar session state para el timestamp
 if 'last_update_time' not in st.session_state:
