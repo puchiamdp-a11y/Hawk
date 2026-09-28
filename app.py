@@ -436,7 +436,7 @@ st.markdown("""
     .alert-card-inline {
         background: var(--white);
         color: var(--ink);
-        padding: 20px 24px;
+        padding: 16px 20px;
         border-radius: 12px;
         border: 1px solid var(--line-soft);
         border-left: 3px solid var(--warning);
