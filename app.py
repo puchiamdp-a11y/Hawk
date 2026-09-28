@@ -436,7 +436,7 @@ st.markdown("""
     .alert-card-inline {
         background: var(--white);
         color: var(--ink);
-        padding: 14px 20px;
+        padding: 20px 24px;
         border-radius: 12px;
         border: 1px solid var(--line-soft);
         border-left: 3px solid var(--warning);
@@ -445,15 +445,15 @@ st.markdown("""
     }
 
     .alert-title-inline {
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 700;
-        margin-bottom: 6px;
+        margin-bottom: 10px;
         color: var(--ink);
     }
 
     .alert-content-inline {
-        font-size: 12px;
-        line-height: 1.5;
+        font-size: 13px;
+        line-height: 1.8;
         color: var(--muted);
     }
 
