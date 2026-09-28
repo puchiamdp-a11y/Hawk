@@ -106,16 +106,17 @@ st.markdown("""
     }
     .hawk-hero-kicker {
         position: relative;
-        font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8);
+        font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8) !important;
         text-transform: uppercase; letter-spacing: .8px;
     }
     .hawk-hero-title {
         position: relative;
-        margin: 6px 0 0 0; font-size: 25px; font-weight: 700; color: #fff; letter-spacing: -.4px;
+        margin: 6px 0 0 0 !important; font-size: 25px !important; font-weight: 700 !important;
+        color: #fff !important; letter-spacing: -.4px;
     }
     .hawk-hero-subtitle {
         position: relative;
-        font-size: 13px; color: rgba(255,255,255,.85); margin-top: 6px; max-width: 640px;
+        font-size: 13px; color: rgba(255,255,255,.85) !important; margin-top: 6px; max-width: 640px;
     }
     .hawk-header {
         margin: 4px 0 22px 0;
