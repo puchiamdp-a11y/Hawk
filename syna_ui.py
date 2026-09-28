@@ -191,9 +191,9 @@ def _estilos():
             background: linear-gradient(135deg,#4255FF,#6A4CFF) !important;
             color: white !important;
             font-weight: 600 !important;
-            border-radius: 12px !important;
+            border-radius: 200px !important;
             border: none !important;
-            padding: 8px 18px !important;
+            padding: 8px 20px !important;
             box-shadow: 0 6px 14px rgba(66,85,255,.24) !important;
             transition: transform .2s ease !important;
         }}
