@@ -729,6 +729,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 pantalla_actual = st.session_state.pantalla_actual
+
+# Resalta en el sidebar el boton de la pantalla activa (Streamlit no
+# expone un estado "activo" nativo para st.button, asi que se apunta
+# via la clase st-key-<key> que Streamlit agrega al contenedor del widget).
+_NAV_KEY_POR_PANTALLA = {
+    "Resumen Ejecutivo": "btn_resumen",
+    "Fichas VIP": "btn_vip",
+    "Machete Costos": "btn_costos",
+    "Proveedores": "btn_prov",
+    "Post Emisión": "btn_post_emision",
+    "Cobranzas SYNA": "btn_syna",
+}
+_nav_key_activo = _NAV_KEY_POR_PANTALLA.get(pantalla_actual)
+if _nav_key_activo:
+    st.markdown(f"""
+    <style>
+        [data-testid="stSidebar"] .st-key-{_nav_key_activo} .stButton > button {{
+            background-color: #EDEFFF !important;
+            color: var(--primary) !important;
+            font-weight: 700 !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
 # ============================================
 # PROCESAR DATOS RESUMEN
 # ============================================
@@ -918,7 +942,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             with col1:
                 st.markdown(f"""
                 <div class="card" style="padding: 22px 24px;">
-                    <div class="icon-chip" style="background: linear-gradient(135deg,#12B76A,#3DD68C); margin-bottom: 14px;">🛡️</div>
+                    <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">🛡️</div>
                     <div class="stat-label">Garantías · cantidad</div>
                     <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{garantias_cant:,}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
@@ -933,7 +957,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             with col2:
                 st.markdown(f"""
                 <div class="card" style="padding: 22px 24px;">
-                    <div class="icon-chip" style="background: var(--grad-icon); margin-bottom: 14px;">📞</div>
+                    <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">📞</div>
                     <div class="stat-label">Asistencias · cantidad</div>
                     <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{asistencias_cant:,}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
@@ -948,7 +972,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             with col3:
                 st.markdown(f"""
                 <div class="card" style="padding: 22px 24px; background: linear-gradient(160deg,#fff,#F5F7FF);">
-                    <div class="icon-chip" style="background: linear-gradient(135deg,#282E3E,#3D4560); margin-bottom: 14px;">📈</div>
+                    <div class="icon-chip" style="background: var(--line-soft); margin-bottom: 14px;">📈</div>
                     <div class="stat-label">Total · cantidad</div>
                     <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{total_cant:,}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
