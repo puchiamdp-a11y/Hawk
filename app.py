@@ -436,14 +436,12 @@ st.markdown("""
     .alert-card-inline {
         background: var(--white);
         color: var(--ink);
-        padding: 12px 16px;
+        padding: 14px 20px;
         border-radius: 12px;
         border: 1px solid var(--line-soft);
         border-left: 3px solid var(--warning);
         box-shadow: var(--shadow-sm);
-        flex: 0 1 auto;
-        min-width: fit-content;
-        width: auto;
+        flex: 1 1 280px;
     }
 
     .alert-title-inline {
