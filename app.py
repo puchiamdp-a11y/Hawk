@@ -1072,10 +1072,10 @@ if pantalla_actual == "Resumen Ejecutivo":
 # ============================================
 # GUÍA DE ESTÉTICA PARA FICHAS
 # Al crear nuevas fichas, aplicar los siguientes colores desaturados:
-# - Encabezados de CATEGORÍAS (Asistencias, Garantías): Azul suave #9DBDD9
-#   st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Nombre Categoría</b></div>", unsafe_allow_html=True)
-# - Encabezados de TOTALES (Total, Total Gral, etc): Naranja suave #E0C9B0
-#   st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Nombre Total</b></div>", unsafe_allow_html=True)
+# - Encabezados de CATEGORÍAS (Asistencias, Garantías): Lilac Wash #EDEFFF
+#   st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>Nombre Categoría</b></div>", unsafe_allow_html=True)
+# - Encabezados de TOTALES (Total, Total Gral, etc): Violeta suave #DCE1FF
+#   st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>Nombre Total</b></div>", unsafe_allow_html=True)
 # - Separadores entre columnas: 3px solid borders (#1E3A8A para datos, #FF6B00 para totales)
 # ============================================
 elif pantalla_actual == "Fichas VIP":
@@ -1165,7 +1165,7 @@ elif pantalla_actual == "Fichas VIP":
                 df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
                 
                 if cliente == "TOYOS":
-                    st.markdown("<h3 style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px; margin-top: 0;'>📊 Garantías - Ventas Mensuales</h3>", unsafe_allow_html=True)
+                    st.markdown("<h3 style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px; margin-top: 0;'>📊 Garantías - Ventas Mensuales</h3>", unsafe_allow_html=True)
 
                     df_table = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3']].copy()
                     df_table.columns = ['Mes', 'GAR_Cant', 'GAR_Premio']
@@ -1196,7 +1196,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # ASISTENCIAS
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>📞 ASISTENCIAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>📞 ASISTENCIAS</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = df_ass['ASS_Cant'].astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1208,7 +1208,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # GARANTIAS SPM
                     with col2:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GAR SPM</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GAR SPM</b></div>", unsafe_allow_html=True)
                         df_spm = df_table[['Mes', 'GAR_SPM_Cant', 'GAR_SPM_Premio']].copy()
                         df_spm['GAR_SPM_Cant'] = df_spm['GAR_SPM_Cant'].astype(int)
                         df_spm['GAR_SPM_Premio'] = df_spm['GAR_SPM_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1220,7 +1220,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # GARANTIAS CPM
                     with col3:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GAR CPM</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GAR CPM</b></div>", unsafe_allow_html=True)
                         df_cpm = df_table[['Mes', 'GAR_CPM_Cant', 'GAR_CPM_Premio']].copy()
                         df_cpm['GAR_CPM_Cant'] = df_cpm['GAR_CPM_Cant'].astype(int)
                         df_cpm['GAR_CPM_Premio'] = df_cpm['GAR_CPM_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1232,7 +1232,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL (Solo Garantías: SPM + CPM)
                     with col4:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 TOTAL GTIAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>💰 TOTAL GTIAS</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOTAL_Cant', 'TOTAL_Premio']].copy()
                         df_tot['TOTAL_Cant'] = df_tot['TOTAL_Cant'].astype(int)
                         df_tot['TOTAL_Premio'] = df_tot['TOTAL_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1244,7 +1244,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TOTAL GENERAL (ASS + SPM + CPM)
                     with col5:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🌟 TOTAL GRAL</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>🌟 TOTAL GRAL</b></div>", unsafe_allow_html=True)
                         df_gen = df_table[['Mes', 'GENERAL_Cant', 'GENERAL_Premio']].copy()
                         df_gen['GENERAL_Cant'] = df_gen['GENERAL_Cant'].astype(int)
                         df_gen['GENERAL_Premio'] = df_gen['GENERAL_Premio'].apply(lambda x: f"${x:,.0f}")
@@ -1253,7 +1253,7 @@ elif pantalla_actual == "Fichas VIP":
 
                     # TABLA DE COBERTURAS (Filas 26-33)
                     st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("<h3 style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'>📋 Coberturas y Costos</h3>", unsafe_allow_html=True)
+                    st.markdown("<h3 style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'>📋 Coberturas y Costos</h3>", unsafe_allow_html=True)
 
                     df_coberturas = df_cliente.iloc[25:33].copy()
                     df_cob = df_coberturas[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4']].copy()
@@ -1309,14 +1309,14 @@ elif pantalla_actual == "Fichas VIP":
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col2:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>💰 RESTANTE DE DEUDA</b></div>", unsafe_allow_html=True)
                         df_deuda = df_table[['Mes', 'Restante_Deuda']].copy()
                         df_deuda['Restante_Deuda'] = df_deuda['Restante_Deuda'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_deuda.columns = ['Mes', 'Deuda']
@@ -1339,14 +1339,14 @@ elif pantalla_actual == "Fichas VIP":
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>🛡️ GARANTÍAS</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if x != 0 else "-")
                         df_gar.columns = ['Mes', 'Cant', 'Premio']
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col2:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>💳 PAGOS</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>💳 PAGOS</b></div>", unsafe_allow_html=True)
                         df_pagos = df_table[['Mes', 'Pagos']].copy()
                         df_pagos['Pagos'] = df_pagos['Pagos'].apply(lambda x: str(x).strip() if pd.notna(x) else "-")
                         df_pagos.columns = ['Mes', 'SI/NO']
@@ -1362,21 +1362,21 @@ elif pantalla_actual == "Fichas VIP":
                     col1, col2, col3 = st.columns(3)
 
                     with col1:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Asistencias</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>Asistencias</b></div>", unsafe_allow_html=True)
                         df_ass = df_table[['Mes', 'ASS_Cant', 'ASS_Premio']].copy()
                         df_ass['ASS_Cant'] = pd.to_numeric(df_ass['ASS_Cant'], errors='coerce').fillna(0).astype(int)
                         df_ass['ASS_Premio'] = df_ass['ASS_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_ass, use_container_width=True, hide_index=True)
 
                     with col2:
-                        st.markdown("<div style='background-color: #9DBDD9; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Garantías</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #EDEFFF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #4255FF; margin-bottom: 10px;'><b>Garantías</b></div>", unsafe_allow_html=True)
                         df_gar = df_table[['Mes', 'GAR_Cant', 'GAR_Premio']].copy()
                         df_gar['GAR_Cant'] = pd.to_numeric(df_gar['GAR_Cant'], errors='coerce').fillna(0).astype(int)
                         df_gar['GAR_Premio'] = df_gar['GAR_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
                         st.dataframe(df_gar, use_container_width=True, hide_index=True)
 
                     with col3:
-                        st.markdown("<div style='background-color: #E0C9B0; padding: 10px; border-radius: 5px; margin-bottom: 10px;'><b>Total</b></div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #DCE1FF; color: #282E3E; padding: 10px 14px; border-radius: 10px; border-left: 3px solid #2F3FCC; margin-bottom: 10px;'><b>Total</b></div>", unsafe_allow_html=True)
                         df_tot = df_table[['Mes', 'TOT_Cant', 'TOT_Premio']].copy()
                         df_tot['TOT_Cant'] = pd.to_numeric(df_tot['TOT_Cant'], errors='coerce').fillna(0).astype(int)
                         df_tot['TOT_Premio'] = df_tot['TOT_Premio'].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x != 0 else "")
