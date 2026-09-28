@@ -327,34 +327,60 @@ st.markdown("""
         width: 100% !important;
     }
 
-   .stButton > button {
+    /* Botones de ACCIÓN (fuera del sidebar): píldora sólida, estilo CTA */
+    .stButton > button {
         width: 100%;
         height: auto !important;
         font-size: 13.5px !important;
         font-weight: 600 !important;
-        padding: 10px 13px !important;
-        border-radius: 12px !important;
-        background-color: transparent !important;
-        color: var(--ink-soft) !important;
+        padding: 10px 20px !important;
+        border-radius: 200px !important;
+        background: var(--grad-icon) !important;
+        color: #fff !important;
         border: none !important;
         margin-bottom: 4px !important;
-        transition: background .2s ease, transform .2s ease !important;
-        box-shadow: none !important;
-        text-align: left;
+        transition: box-shadow .2s ease, transform .2s ease !important;
+        box-shadow: 0 6px 14px rgba(66,85,255,.24) !important;
+        text-align: center;
     }
 
     .stButton > button:hover {
-        color: var(--primary) !important;
-        background-color: #EDEFFF !important;
-        transform: translateX(2px) !important;
-        border: none !important;
+        color: #fff !important;
+        box-shadow: 0 8px 18px rgba(66,85,255,.32) !important;
+        transform: translateY(-1px) !important;
     }
 
     .stButton > button:active,
     .stButton > button:focus:not(:hover) {
         color: #fff !important;
         background: var(--grad-icon) !important;
+        box-shadow: 0 4px 10px rgba(66,85,255,.28) !important;
+        transform: translateY(0) !important;
+    }
+
+    /* Navegación del sidebar: link plano, no CTA */
+    [data-testid="stSidebar"] .stButton > button {
+        background: transparent !important;
+        color: var(--ink-soft) !important;
+        border-radius: 12px !important;
+        padding: 10px 13px !important;
+        box-shadow: none !important;
+        text-align: left;
+    }
+
+    [data-testid="stSidebar"] .stButton > button:hover {
+        color: var(--primary) !important;
+        background-color: #EDEFFF !important;
+        transform: translateX(2px) !important;
+        box-shadow: none !important;
+    }
+
+    [data-testid="stSidebar"] .stButton > button:active,
+    [data-testid="stSidebar"] .stButton > button:focus:not(:hover) {
+        color: #fff !important;
+        background: var(--grad-icon) !important;
         box-shadow: 0 8px 18px rgba(66,85,255,.32) !important;
+        transform: translateX(0) !important;
     }
      /* TARJETAS DE SECCIONES */
     .section-card {
