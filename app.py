@@ -30,30 +30,37 @@ URL = f"https://docs.google.com/spreadsheets/d/{GOOGLE_DRIVE_ID}/export?format=x
 # ============================================
 # ESTILOS CORPORATIVOS (OPTIMIZADO PARA MOBILE)
 # ============================================
+st.markdown(
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">',
+    unsafe_allow_html=True,
+)
+
 st.markdown("""
 <style>
     :root{
-        --ink:#0B0F19; --ink-soft:#232838; --muted:#6B7280; --faint:#9CA3AF;
-        --primary:#2E5CFF; --primary-2:#7B61FF; --cyan:#00C2FF;
-        --bg:#F5F7FC; --white:#FFFFFF; --line:#E7EAF3; --line-soft:#EEF1F8;
+        --ink:#282E3E; --ink-soft:#2E3856; --muted:#586380; --faint:#939BB4;
+        --primary:#4255FF; --primary-2:#6A4CFF; --cyan:#8AA0FF;
+        --bg:#F6F7FB; --white:#FFFFFF; --line:#D9DDE8; --line-soft:#EDEFFF;
         --success:#12B76A; --success-bg:#E7F9EF; --success-ink:#0A8F53;
         --danger:#F5384E; --danger-bg:#FDEAEC; --danger-ink:#C81E3A;
         --warning:#FF9F0A; --warning-bg:#FFF4E0; --warning-ink:#B26B00;
-        --grad-hero: linear-gradient(135deg,#2E5CFF 0%,#6A4CFF 55%,#00C2FF 100%);
-        --grad-icon: linear-gradient(135deg,#2E5CFF,#7B61FF);
-        --shadow-sm: 0 2px 8px rgba(16,24,64,.06);
-        --shadow-md: 0 10px 28px rgba(16,24,64,.10);
+        --grad-hero: linear-gradient(135deg,#4255FF 0%,#6A4CFF 55%,#8AA0FF 100%);
+        --grad-icon: linear-gradient(135deg,#4255FF,#6A4CFF);
+        --shadow-sm: 0 2px 8px rgba(40,46,62,.06);
+        --shadow-md: 0 10px 28px rgba(40,46,62,.10);
     }
 
     * {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'DM Sans', 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     body, .stApp {
         background-color: var(--bg) !important;
         background-image:
-            radial-gradient(900px 420px at 92% -8%, rgba(123,97,255,.10), transparent 60%),
-            radial-gradient(700px 360px at -4% 8%, rgba(46,92,255,.08), transparent 55%) !important;
+            radial-gradient(900px 420px at 92% -8%, rgba(106,76,255,.10), transparent 60%),
+            radial-gradient(700px 360px at -4% 8%, rgba(66,85,255,.08), transparent 55%) !important;
         color: var(--ink);
     }
 
@@ -81,7 +88,7 @@ st.markdown("""
         padding: 26px 30px;
         margin: 4px 0 22px 0;
         background: var(--grad-hero);
-        box-shadow: 0 20px 48px rgba(46,92,255,.30);
+        box-shadow: 0 20px 48px rgba(66,85,255,.30);
         position: relative;
         overflow: hidden;
     }
@@ -95,7 +102,7 @@ st.markdown("""
         content: "";
         position: absolute; bottom: -90px; left: 30%; width: 200px; height: 200px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(0,194,255,.20), transparent 70%);
+        background: radial-gradient(circle, rgba(138,160,255,.20), transparent 70%);
     }
     .hawk-hero-kicker {
         position: relative;
@@ -131,7 +138,7 @@ st.markdown("""
     .icon-chip {
         width: 38px; height: 38px; border-radius: 11px;
         display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        box-shadow: 0 6px 14px rgba(46,92,255,.24);
+        box-shadow: 0 6px 14px rgba(66,85,255,.24);
         font-size: 18px;
     }
     .stat-label {
@@ -268,7 +275,7 @@ st.markdown("""
     }
 
     .info-item {
-        background: linear-gradient(160deg,#F0F3FF,#fff);
+        background: linear-gradient(160deg,#EDEFFF,#fff);
         padding: 12px 14px;
         border-radius: 11px;
         border: 1px solid var(--line-soft);
@@ -338,7 +345,7 @@ st.markdown("""
 
     .stButton > button:hover {
         color: var(--primary) !important;
-        background-color: #F0F3FF !important;
+        background-color: #EDEFFF !important;
         transform: translateX(2px) !important;
         border: none !important;
     }
@@ -347,7 +354,7 @@ st.markdown("""
     .stButton > button:focus:not(:hover) {
         color: #fff !important;
         background: var(--grad-icon) !important;
-        box-shadow: 0 8px 18px rgba(46,92,255,.32) !important;
+        box-shadow: 0 8px 18px rgba(66,85,255,.32) !important;
     }
      /* TARJETAS DE SECCIONES */
     .section-card {
@@ -453,12 +460,12 @@ st.markdown("""
     }
 
     .resumen-header-asistencias {
-        background: linear-gradient(90deg,#2E5CFF,#7B61FF);
+        background: linear-gradient(90deg,#4255FF,#6A4CFF);
         color: white;
     }
 
     .resumen-header-total {
-        background: linear-gradient(90deg,#12183099,#2E5CFF);
+        background: linear-gradient(90deg,#12183099,#4255FF);
         color: white;
     }
 
@@ -471,7 +478,7 @@ st.markdown("""
     }
 
     .resumen-row-total {
-        background-color: #F0F3FF;
+        background-color: #EDEFFF;
     }
 
     .resumen-cant {
@@ -483,7 +490,7 @@ st.markdown("""
     }
 
     .provider-header {
-        background: #F0F3FF;
+        background: #EDEFFF;
         border: 1px solid var(--line-soft);
         border-left: 4px solid var(--primary);
         padding: 14px;
@@ -915,7 +922,7 @@ if pantalla_actual == "Resumen Ejecutivo":
             with col3:
                 st.markdown(f"""
                 <div class="card" style="padding: 22px 24px; background: linear-gradient(160deg,#fff,#F5F7FF);">
-                    <div class="icon-chip" style="background: linear-gradient(135deg,#0B0F19,#3D4560); margin-bottom: 14px;">📈</div>
+                    <div class="icon-chip" style="background: linear-gradient(135deg,#282E3E,#3D4560); margin-bottom: 14px;">📈</div>
                     <div class="stat-label">Total · cantidad</div>
                     <div style="font-size: 27px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums;">{total_cant:,}</div>
                     <div style="height: 1px; background: var(--line-soft); margin: 14px 0;"></div>
