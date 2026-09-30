@@ -1510,7 +1510,7 @@ elif pantalla_actual == "Machete Costos":
 
         st.markdown("""
         <style>
-        .costos-sancor { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .costos-sancor { width: auto; max-width: 100%; border-collapse: collapse; font-size: 14px; }
         .costos-sancor th { background: #1E3A8A; color: white; padding: 6px 10px; text-align: left; }
         .costos-sancor th:last-child, .costos-sancor td.costo { text-align: right; white-space: nowrap; font-weight: bold; }
         .costos-sancor td { padding: 5px 10px; border-bottom: 1px solid #ddd; }
