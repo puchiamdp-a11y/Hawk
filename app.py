@@ -1510,7 +1510,7 @@ elif pantalla_actual == "Machete Costos":
 
         st.markdown("""
         <style>
-        .costos-sancor { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .costos-sancor { width: auto; max-width: 100%; border-collapse: collapse; font-size: 14px; }
         .costos-sancor th { background: #1E3A8A; color: white; padding: 6px 10px; text-align: left; }
         .costos-sancor th:last-child, .costos-sancor td.costo { text-align: right; white-space: nowrap; font-weight: bold; }
         .costos-sancor td { padding: 5px 10px; border-bottom: 1px solid #ddd; }
@@ -1562,7 +1562,7 @@ elif pantalla_actual == "Proveedores":
         """, unsafe_allow_html=True)
         
         # Extraer datos
-        df_datos = df_prov.iloc[3:10].copy()
+        df_datos = df_prov.iloc[3:].copy()  # sin limite fijo: toma todos los meses cargados
         df_datos = df_datos.dropna(subset=['Unnamed: 1'], how='all')
         
         df_tabla = df_datos[['Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5', 
@@ -1571,12 +1571,16 @@ elif pantalla_actual == "Proveedores":
         df_tabla.columns = ['Mes', 'Cardinal_Cant', 'Cardinal_Precio', 'Addiuva_Cant', 'Addiuva_Precio',
                            'BZR_Cant', 'BZR_Precio', 'GRAL_Cant', 'GRAL_Precio', 'Imprenta_Cant', 'Imprenta_Precio']
         
-        df_tabla = df_tabla[df_tabla['Mes'].notna()]
+        meses_validos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
+                         'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        df_tabla = df_tabla[df_tabla['Mes'].astype(str).str.strip().isin(meses_validos)]
 
         # CARDINAL
         with st.expander("🏥 **Cardinal**"):
             df_cardinal = df_tabla[['Mes', 'Cardinal_Cant', 'Cardinal_Precio']].copy()
             df_cardinal.columns = ['Mes', 'Cantidad', 'Precio']
+            # Solo meses con dato: cada proveedor llega hasta su ultimo mes cargado
+            df_cardinal = df_cardinal[pd.to_numeric(df_cardinal['Precio'], errors='coerce').fillna(0) > 0]
             df_cardinal['Cantidad'] = pd.to_numeric(df_cardinal['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_cardinal['Precio'] = df_cardinal['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_cardinal, hide_index=True, width=600)
@@ -1585,6 +1589,8 @@ elif pantalla_actual == "Proveedores":
         with st.expander("💊 **Addiuva**"):
             df_addiuva = df_tabla[['Mes', 'Addiuva_Cant', 'Addiuva_Precio']].copy()
             df_addiuva.columns = ['Mes', 'Cantidad', 'Precio']
+            # Solo meses con dato: cada proveedor llega hasta su ultimo mes cargado
+            df_addiuva = df_addiuva[pd.to_numeric(df_addiuva['Precio'], errors='coerce').fillna(0) > 0]
             df_addiuva['Cantidad'] = pd.to_numeric(df_addiuva['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_addiuva['Precio'] = df_addiuva['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_addiuva, hide_index=True, width=600)
@@ -1593,6 +1599,8 @@ elif pantalla_actual == "Proveedores":
         with st.expander("☎️ **Llamadas al Doctor BZR**"):
             df_bzr = df_tabla[['Mes', 'BZR_Cant', 'BZR_Precio']].copy()
             df_bzr.columns = ['Mes', 'Cantidad', 'Precio']
+            # Solo meses con dato: cada proveedor llega hasta su ultimo mes cargado
+            df_bzr = df_bzr[pd.to_numeric(df_bzr['Precio'], errors='coerce').fillna(0) > 0]
             df_bzr['Cantidad'] = pd.to_numeric(df_bzr['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_bzr['Precio'] = df_bzr['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_bzr, hide_index=True, width=600)
@@ -1601,6 +1609,8 @@ elif pantalla_actual == "Proveedores":
         with st.expander("☎️ **Llamadas al Doctor GRAL**"):
             df_gral = df_tabla[['Mes', 'GRAL_Cant', 'GRAL_Precio']].copy()
             df_gral.columns = ['Mes', 'Cantidad', 'Precio']
+            # Solo meses con dato: cada proveedor llega hasta su ultimo mes cargado
+            df_gral = df_gral[pd.to_numeric(df_gral['Precio'], errors='coerce').fillna(0) > 0]
             df_gral['Cantidad'] = pd.to_numeric(df_gral['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_gral['Precio'] = df_gral['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_gral, hide_index=True, width=600)
@@ -1609,6 +1619,8 @@ elif pantalla_actual == "Proveedores":
         with st.expander("🖨️ **Imprenta**"):
             df_imprenta = df_tabla[['Mes', 'Imprenta_Cant', 'Imprenta_Precio']].copy()
             df_imprenta.columns = ['Mes', 'Cantidad', 'Precio']
+            # Solo meses con dato: cada proveedor llega hasta su ultimo mes cargado
+            df_imprenta = df_imprenta[pd.to_numeric(df_imprenta['Precio'], errors='coerce').fillna(0) > 0]
             df_imprenta['Cantidad'] = pd.to_numeric(df_imprenta['Cantidad'], errors='coerce').fillna(0).astype(int)
             df_imprenta['Precio'] = df_imprenta['Precio'].apply(lambda x: f"${fmt_ar(x, 2)}" if pd.notna(x) and x != 0 else "")
             st.dataframe(df_imprenta, hide_index=True, width=600)
