@@ -1351,27 +1351,28 @@ elif pantalla_actual == "Fichas VIP":
                     df_cob.columns = ['% Total', '% Sancor', '% Blister', 'Cobertura']
                     df_cob = df_cob[df_cob['% Total'].notna()]
 
-                    # Convertir valores numéricos
-                    df_cob['% Total'] = df_cob['% Total'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
-                    df_cob['% Sancor'] = df_cob['% Sancor'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
-                    df_cob['% Blister'] = df_cob['% Blister'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) and isinstance(x, (int, float)) else str(x))
+                    # En el Excel los % vienen como fracciones (0.0928 = 9,28%)
+                    def _pct(x):
+                        v = pd.to_numeric(x, errors='coerce')
+                        return f"{fmt_ar(v * 100, 2)}%" if pd.notna(v) else str(x)
 
-                    # Renderizar tabla con HTML para resaltar valores en negrita
-                    tabla_html = '<table class="resumen-table" style="width: auto; border-collapse: collapse;">'
-                    tabla_html += '<tr style="background-color: #1E3A8A; color: white;"><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Total</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Sancor</th><th style="padding: 10px; text-align: center; border: 2px solid #1E3A8A;">% Blister</th><th style="padding: 10px; text-align: left; border: 2px solid #1E3A8A;">Cobertura</th></tr>'
+                    # Colores por columna: encabezado fuerte, celdas desaturadas
+                    # (Total rojo, Sancor azul, Blister verde)
+                    estilos = {
+                        '% Total': ('#C0392B', '#F3DEDC'),
+                        '% Sancor': ('#1F5FBF', '#DCE6F5'),
+                        '% Blister': ('#1E8449', '#DCEDE2'),
+                    }
+                    th_base = 'padding: 10px; text-align: center; color: white; border: 1px solid #fff;'
+                    tabla_html = '<table class="resumen-table" style="width: auto; border-collapse: collapse;"><tr>'
+                    for nombre, (fuerte, _) in estilos.items():
+                        tabla_html += f'<th style="{th_base} background-color: {fuerte};">{nombre}</th>'
+                    tabla_html += '<th style="padding: 10px; text-align: left; color: white; background-color: #1E3A8A; border: 1px solid #fff;">Cobertura</th></tr>'
 
                     for idx, row in df_cob.iterrows():
-                        tabla_html += '<tr style="border-bottom: 2px solid #1E3A8A;">'
-                        # % Total
-                        val_total = str(row['% Total']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_total}</td>'
-                        # % Sancor
-                        val_sancor = str(row['% Sancor']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_sancor}</td>'
-                        # % Blister
-                        val_blister = str(row['% Blister']).strip()
-                        tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #ddd;">{val_blister}</td>'
-                        # Cobertura
+                        tabla_html += '<tr>'
+                        for nombre, (_, suave) in estilos.items():
+                            tabla_html += f'<td style="text-align: center; font-weight: bold; padding: 8px; border: 1px solid #fff; background-color: {suave}; color: #282E3E;">{_pct(row[nombre])}</td>'
                         cobertura = str(row['Cobertura']).strip()
                         tabla_html += f'<td style="text-align: left; padding: 8px; border: 1px solid #ddd;"><b>{cobertura}</b></td>'
                         tabla_html += '</tr>'
@@ -1492,40 +1493,49 @@ elif pantalla_actual == "Machete Costos":
     if "Costos Sancor" in datos:
         df_costos = datos["Costos Sancor"]
 
-        # Extraer datos
-        df_tabla = df_costos.iloc[2:16].copy()
-        
-        df_con_max = df_tabla[['Unnamed: 3', 'Unnamed: 4']].copy()
-        df_con_max.columns = ['Cobertura', 'Costo']
-        df_con_max = df_con_max[df_con_max['Cobertura'].notna()]
-        
-        df_sin_max = df_tabla[['Unnamed: 6', 'Unnamed: 7']].copy()
-        df_sin_max.columns = ['Cobertura', 'Costo']
-        df_sin_max = df_sin_max[df_sin_max['Cobertura'].notna()]
-        
-        # Mostrar en dos columnas
+        # Extraer datos (hasta la ultima fila con datos; antes se cortaba en la fila 16)
+        df_tabla = df_costos.iloc[2:].copy()
+
+        def _tabla_costos_html(df_origen, col_cob, col_costo):
+            df_t = df_origen[[col_cob, col_costo]].copy()
+            df_t.columns = ['Cobertura', 'Costo']
+            df_t = df_t[df_t['Cobertura'].notna()]
+            filas = ''
+            for _, r in df_t.iterrows():
+                costo = pd.to_numeric(r['Costo'], errors='coerce')
+                costo_txt = f"{fmt_ar(costo, 2)}%" if pd.notna(costo) else "-"
+                filas += f'<tr><td>{r["Cobertura"]}</td><td class="costo">{costo_txt}</td></tr>'
+            return ('<table class="costos-sancor"><thead><tr><th>Cobertura</th><th>Costo</th></tr></thead>'
+                    f'<tbody>{filas}</tbody></table>')
+
+        st.markdown("""
+        <style>
+        .costos-sancor { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .costos-sancor th { background: #1E3A8A; color: white; padding: 6px 10px; text-align: left; }
+        .costos-sancor th:last-child, .costos-sancor td.costo { text-align: right; white-space: nowrap; font-weight: bold; }
+        .costos-sancor td { padding: 5px 10px; border-bottom: 1px solid #ddd; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Mostrar en dos columnas (tablas HTML completas, sin scroll interno)
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown("""
             <div class="provider-header">
                 <h4>📌 CON MAX</h4>
             </div>
             """, unsafe_allow_html=True)
-            df_display_max = df_con_max.copy()
-            df_display_max['Costo'] = df_display_max['Costo'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "")
-            st.dataframe(df_display_max, use_container_width=True, hide_index=True)
-        
+            st.markdown(_tabla_costos_html(df_tabla, 'Unnamed: 3', 'Unnamed: 4'), unsafe_allow_html=True)
+
         with col2:
             st.markdown("""
             <div class="provider-header">
                 <h4>📌 SIN MAX</h4>
             </div>
             """, unsafe_allow_html=True)
-            df_display_sin_max = df_sin_max.copy()
-            df_display_sin_max['Costo'] = df_display_sin_max['Costo'].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "")
-            st.dataframe(df_display_sin_max, use_container_width=True, hide_index=True)
-        
+            st.markdown(_tabla_costos_html(df_tabla, 'Unnamed: 6', 'Unnamed: 7'), unsafe_allow_html=True)
+
         st.markdown("---")
         st.caption("✅ Tabla de referencia rápida de coberturas Sancor")
     
