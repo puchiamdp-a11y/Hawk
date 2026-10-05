@@ -642,64 +642,74 @@ import time
 import threading
 from datetime import datetime
 
-CACHE_TTL_SEGUNDOS = 1800  # 30 min
-REFRESH_SEGUNDO_PLANO_SEGUNDOS = 1500  # 25 min: se refresca ANTES de que venza
-                                        # el cache, para que ningun usuario sea
-                                        # quien dispare la descarga lenta (20-30s).
-
-@st.cache_data(ttl=CACHE_TTL_SEGUNDOS)
-def cargar_datos():
-    """Carga datos frescos de Google Drive (con cache de 30 min)"""
-    response = requests.get(URL, timeout=10)
-    archivo_excel = BytesIO(response.content)
-
-    datos = {}
-    excel_file = pd.ExcelFile(archivo_excel)
-
-    for pestaña in excel_file.sheet_names:
-        datos[pestaña] = pd.read_excel(archivo_excel, sheet_name=pestaña)
-
-    return datos
+REFRESH_SEGUNDO_PLANO_SEGUNDOS = 600  # el hilo de fondo re-descarga el Excel
+                                       # cada 10 min; el usuario nunca espera.
 
 
-def _mantener_cache_tibio():
-    """Hilo en segundo plano: refresca el cache de forma periodica para que
-    el usuario nunca sea quien espere la descarga del Excel. Corre una unica
-    vez por proceso (ver _iniciar_hilo_background mas abajo)."""
+def _descargar_datos():
+    """Descarga el Excel de Google Drive y devuelve {pestaña: DataFrame}."""
+    response = requests.get(URL, timeout=(5, 90))
+    response.raise_for_status()
+    return pd.read_excel(BytesIO(response.content), sheet_name=None)
+
+
+def _refrescar_datos(estado, solo_si_vacio=False):
+    # El lock serializa las descargas: si el primer usuario llega mientras
+    # el hilo de fondo ya esta bajando el Excel, espera esa misma descarga
+    # en vez de lanzar una segunda en paralelo.
+    with estado["lock"]:
+        if solo_si_vacio and estado["datos"] is not None:
+            return
+        datos_nuevos = _descargar_datos()
+        # Reemplazo atomico: un rerun que lea a la vez ve el dict viejo o
+        # el nuevo completo, nunca uno a medias.
+        estado["datos"] = datos_nuevos
+        estado["ts"] = datetime.now()
+
+
+def _mantener_cache_tibio(estado):
+    """Hilo en segundo plano: precarga el Excel apenas arranca el proceso y
+    lo refresca periodicamente, para que ningun usuario espere la descarga."""
     while True:
-        time.sleep(REFRESH_SEGUNDO_PLANO_SEGUNDOS)
         try:
-            cargar_datos()
+            _refrescar_datos(estado)
         except Exception:
-            # Un fallo puntual de red no debe matar el hilo: se reintenta
-            # en el proximo ciclo.
+            # Un fallo puntual de red no debe matar el hilo ni borrar los
+            # datos viejos: se reintenta en el proximo ciclo.
             pass
+        time.sleep(REFRESH_SEGUNDO_PLANO_SEGUNDOS)
 
 
-def _iniciar_hilo_background():
-    """Arranca el hilo de refresco solo una vez por proceso. st.session_state
-    es por sesion (no sirve para esto); se usa un atributo de la propia
-    funcion como bandera global del proceso, ya que los globals del modulo
-    persisten entre reruns de Streamlit dentro del mismo worker."""
-    if getattr(_iniciar_hilo_background, "_ya_iniciado", False):
-        return
-    hilo = threading.Thread(target=_mantener_cache_tibio, daemon=True)
-    hilo.start()
-    _iniciar_hilo_background._ya_iniciado = True
+@st.cache_resource
+def _estado_datos():
+    """Estado compartido por todo el proceso, creado una sola vez.
+
+    Streamlit re-ejecuta app.py en un namespace nuevo en cada interaccion,
+    asi que ni los globals del script ni atributos puestos en funciones
+    sobreviven entre reruns (antes eso hacia que se lanzara un hilo nuevo
+    por cada click). st.cache_resource si persiste por proceso: aca viven
+    los datos y el unico hilo de refresco.
+
+    No se usa st.cache_data con TTL porque el hilo de fondo se encontraba
+    con el cache todavia vigente, no refrescaba nada, y al vencer el TTL
+    algun usuario pagaba la descarga lenta."""
+    estado = {"datos": None, "ts": None, "lock": threading.Lock()}
+    threading.Thread(target=_mantener_cache_tibio, args=(estado,), daemon=True).start()
+    return estado
 
 
-_iniciar_hilo_background()
+def cargar_datos(forzar=False):
+    """Devuelve los datos en memoria. Solo descarga si todavia no hay nada
+    (arranque del proceso) o si se fuerza desde el boton Actualizar."""
+    estado = _estado_datos()
+    if forzar:
+        _refrescar_datos(estado)
+    elif estado["datos"] is None:
+        _refrescar_datos(estado, solo_si_vacio=True)
+    return estado["datos"]
 
-# Inicializar session state para el timestamp
-if 'last_update_time' not in st.session_state:
-    st.session_state.last_update_time = datetime.now()
 
 datos = cargar_datos()
-
-# Actualizar timestamp después de cargar los datos
-if st.session_state.get('force_refresh', False):
-    st.session_state.last_update_time = datetime.now()
-    st.session_state.force_refresh = False
 
 # ============================================
 # SELECTOR DE PANTALLA (SIDEBAR COMPACTO)
@@ -734,7 +744,7 @@ with st.sidebar:
     st.write("")
 
     # Mostrar timestamp de última actualización
-    last_update = st.session_state.last_update_time
+    last_update = _estado_datos()["ts"] or datetime.now()
     time_since_update = (datetime.now() - last_update).total_seconds()
 
     if time_since_update < 60:
@@ -750,7 +760,7 @@ with st.sidebar:
 
     if st.button("🔄 Actualizar", key="btn_refresh", use_container_width=True, help="Actualizar datos ahora de Google Sheets"):
         st.cache_data.clear()
-        st.session_state.force_refresh = True
+        cargar_datos(forzar=True)
         st.rerun()
 
 # Forzar cierre de sidebar con CSS
@@ -1072,9 +1082,9 @@ if pantalla_actual == "Resumen Ejecutivo":
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    last_update = st.session_state.last_update_time
+    last_update = _estado_datos()["ts"] or datetime.now()
     formatted_time = last_update.strftime("%H:%M:%S")
-    st.caption(f"✅ Última actualización: {formatted_time} | Próxima auto-actualización en ~5 min")
+    st.caption(f"✅ Última actualización: {formatted_time} | Se actualiza sola cada 10 min")
 
     # TABLA COMPLETA - HISTÓRICO DE MESES
     st.markdown("""
@@ -1626,7 +1636,7 @@ elif pantalla_actual == "Proveedores":
             st.dataframe(df_imprenta, hide_index=True, width=600)
         
         st.markdown("---")
-        last_update = st.session_state.last_update_time
+        last_update = _estado_datos()["ts"] or datetime.now()
         formatted_time = last_update.strftime("%H:%M:%S")
         st.caption(f"✅ Actualizado: {formatted_time} | Presiona 🔄 REFRESH si ves datos desactualizados")
     
@@ -1880,7 +1890,7 @@ elif pantalla_actual == "Post Emisión":
             st.info("📭 No hay datos disponibles para mostrar")
 
         st.markdown("---")
-        last_update = st.session_state.last_update_time
+        last_update = _estado_datos()["ts"] or datetime.now()
         formatted_time = last_update.strftime("%H:%M:%S")
         st.caption(f"✅ Actualizado: {formatted_time} | Se actualiza cada 5 minutos automáticamente")
 
