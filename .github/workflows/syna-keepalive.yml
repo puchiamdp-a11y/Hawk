@@ -1,0 +1,32 @@
+name: SYNA keep-alive
+
+# Supabase (tier gratuito) pausa el proyecto tras ~7 días sin actividad.
+# Esta consulta liviana cada 2 días mantiene la base activa sin costo.
+on:
+  schedule:
+    - cron: "0 12 */2 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar dependencia
+        run: pip install psycopg2-binary
+
+      - name: Consultar la base SYNA
+        env:
+          SYNA_DATABASE_URL: ${{ secrets.SYNA_DATABASE_URL }}
+        run: |
+          python - <<'EOF'
+          import os
+          import psycopg2
+
+          conn = psycopg2.connect(os.environ["SYNA_DATABASE_URL"], connect_timeout=15)
+          try:
+              with conn.cursor() as cur:
+                  cur.execute("SELECT 1")
+                  print("Base SYNA activa:", cur.fetchone()[0] == 1)
+          finally:
+              conn.close()
+          EOF
